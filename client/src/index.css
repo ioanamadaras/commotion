@@ -1,6 +1,3 @@
-@import '../src/styles/_variables.scss';
-@import '../src/styles/_keyframe-animations.scss';
-
 @import 'tailwindcss';
 
 @font-face {
@@ -29,55 +26,54 @@
 	color: var(--text);
 
 	/* Variables */
-	--text: #fefefe;
-	--bg: #1e1e1e;
-	--bg-darker: #161616;
-	--primary: #f97315;
-	--primary-thin: #f9731555;
+	--text: #f5f5f5;
+	--text-thin: #f5f5f588;
+	--bg: #08090a;
+	--bg-darker: #1e1e1e;
+	--bg-90: #08090a80;
+
+	--primary: #2e9dfe;
+	--primary-dark: rgb(10, 39, 35);
+	--primary-thin: rgb(90, 196, 182, 0.15);
 	--secondary: #3b82f6;
-	--gray: #8886;
+	--gray: #8888;
 	--gray-thin: #88888815;
 
+	--nav-height: 4.5rem;
+	--footer-height: 0rem;
 	--input-height: 2.2rem;
 	--radius: 0.5rem;
-	--padding: 0.75rem;
-
-	--sidebar-width: 0;
-	--sidebar-collapsed-width: 3.6rem;
-	--sidebar-effective-width: var(--sidebar-width);
-	--sidebar-offset: var(--sidebar-effective-width);
-	--sidebar-transition-duration: 0.28s;
-	--sidebar-transition-ease: cubic-bezier(0.4, 0, 0.2, 1);
+	--timing: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+	--padding: 1rem;
 	--scrollbar-size: 0.3rem;
-	font-size: 10px;
-
-	--timing: cubic-bezier(
-		0.175,
-		0.885,
-		0.32,
-		1.275
-	); /* for bouncy transitions */
+	font-size: 13px;
 }
 /* If user prefers light mode */
 @media (prefers-color-scheme: light) {
 	:root {
 		--text: #080808;
+		--text-thin: #08080888;
 		--bg: #f5f5f5;
 		--bg-darker: #e8e8e8;
+		--bg-90: #f5f5f580;
 	}
 }
 
 /* Set in the Builder by the user, overrides prefrences */
 [data-theme='dark'] {
-	--text: #fefefe;
-	--bg: #1e1e1e;
-	--bg-darker: #121212;
+	--text: #f5f5f5;
+	--text-thin: #f5f5f588;
+	--bg: #08090a;
+	--bg-darker: #1e1e1e;
+	--bg-90: #08090a80;
 }
 
 [data-theme='light'] {
 	--text: #080808;
+	--text-thin: #08080888;
 	--bg: #f5f5f5;
 	--bg-darker: #e8e8e8;
+	--bg-90: #f5f5f580;
 }
 
 /* Global styles */
@@ -95,10 +91,13 @@ html,
 	margin: 0;
 	padding: 0;
 	background-color: var(--bg);
+	width: 100vw;
+	width: 100dvw;
+	min-height: 100vh;
+	min-height: 100dvh;
 }
 
 a {
-	text-decoration: none;
 	color: inherit;
 }
 
@@ -135,17 +134,20 @@ h4 {
 }
 p {
 	font-size: calc(0.9rem + 0.1vw);
+	color: var(--text-thin);
+}
+span {
+	color: inherit;
 }
 hr {
 	border-color: var(--bg-darker);
 }
 
 main {
+	min-height: calc(100vh - var(--nav-height) - var(--footer-height));
+	min-height: calc(100dvh - var(--nav-height) - var(--footer-height));
 	padding: var(--padding);
-	padding-left: calc(var(--sidebar-offset) + var(--padding));
-	height: 100dvh;
 	width: 100%;
-	transition: padding-left var(--sidebar-transition-duration) var(--sidebar-transition-ease);
 }
 
 /* SVGs */
@@ -230,8 +232,7 @@ main {
 /* 1. Phone: 0px -> 639px */
 @media (min-width: 0px) {
 	:root {
-		font-size: 12px;
-		--sidebar-width: 3.6rem;
+		font-size: 13px;
 	}
 
 	.mobilehidden {
@@ -246,7 +247,6 @@ main {
 @media (min-width: 640px) {
 	:root {
 		font-size: 13px;
-		--sidebar-width: 15rem;
 	}
 
 	.mobilehidden {
@@ -260,15 +260,13 @@ main {
 /* 3. Laptop: 1024px -> 1535px */
 @media (min-width: 1024px) {
 	:root {
-		font-size: 14px;
-		--sidebar-width: 17rem;
+		font-size: 15px;
 	}
 }
 
 /* 4. Desktop: 1536px -> INFINITY */
 @media (min-width: 1536px) {
 	:root {
-		font-size: 15px;
-		--sidebar-width: 20rem;
+		font-size: 16px;
 	}
 }

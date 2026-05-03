@@ -1,5 +1,5 @@
 import { _useContext } from "../Context";
-import { getGreeting } from "../utils/greetUser";
+import { getGreeting } from "../utils/time";
 
 export default function Home() {
     const { state } = _useContext();

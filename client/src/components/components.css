@@ -1,0 +1,34 @@
+.board-page__members {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 0.25rem;
+	padding: 0.25rem 0.25rem 0.25rem 1.50rem;
+	flex-shrink: 0;
+	overflow-x: auto;
+	overflow-y: hidden;
+}
+
+.board-page__member {
+	margin-left: -1.25rem;
+	transition: transform 0.2s ease;
+}
+
+.board-page__member:hover {
+	transform: translateY(0.25rem);
+}
+
+.board-page__editor-section {
+	position: relative;
+	flex: 1;
+	min-height: 0;
+}
+
+.board-page__editor-shell {
+	height: 100%;
+	max-width: 100%;
+	margin: 0 auto;
+	border-radius: 0.75rem;
+	border: 1px solid var(--gray-thin);
+	background: color-mix(in srgb, var(--bg-darker) 85%, transparent);
+}

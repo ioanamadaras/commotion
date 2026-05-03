@@ -3,8 +3,8 @@ export type UserType = {
 	username: string;
 	email: string;
 	lastPulseTimeStamp?: Date;
-	isAdmin?: boolean;
 	avatarURL?: string;
+	selectedTeam?: string;
 };
 
 export type ContextType = {
@@ -19,6 +19,8 @@ export type ContextType = {
 };
 
 export type StateType = {
+    isSidebarOpen: boolean;
+    isModalOpen: boolean;
 	/**
 	 * The current font size of the app
 	 * @remarks Use "rem" over "px" for everything except border-widths, shadows, specific margins/paddings to keep stuff responsive
@@ -32,7 +34,7 @@ export type StateType = {
 	/**
 	 * The teams the user is a part of
 	 */
-	team: TeamType;
+	teams: TeamType[];
 };
 
 export type TeamType = {

@@ -1,45 +1,24 @@
-.board-page {
-	display: flex;
-	flex-direction: column;
-	gap: 0.75rem;
-	min-height: calc(100dvh - var(--padding) * 2);
-	overflow: hidden;
-	background-image: radial-gradient(circle, var(--gray-thin) 0.5px, transparent 1px);
-	background-size: 20px 20px;
+.excalidraw-wrapper .excalidraw {
+  --color-primary: #fcc6d9;
+  --color-primary-darker: #f783ac;
+  --color-primary-darkest: #e64980;
+  --color-primary-light: #f2a9c4;
 }
 
-.board-page__members {
-	display: flex;
-	flex-direction: row-reverse;
-	align-items: center;
-	gap: 0.25rem;
-	padding: 0.25rem 0.5rem;
-	flex-shrink: 0;
-	overflow-x: auto;
-	overflow-y: hidden;
+.excalidraw-wrapper .excalidraw.theme--light {
+  --color-primary: #fcc6d9;
+  --color-primary-darker: #f783ac;
+  --color-primary-darkest: #e64980;
+  --color-primary-light: #f2a9c4;
 }
 
-.board-page__member {
-	margin-left: -1.2rem;
-	transition: transform 0.2s ease;
+.excalidraw-wrapper .excalidraw.theme--dark {
+  --color-primary: #d494aa;
+  --color-primary-darker: #d64c7e;
+  --color-primary-darkest: #e86e99;
+  --color-primary-light: #dcbec9;
 }
 
-.board-page__member:hover {
-	transform: translateY(0.25rem);
-}
-
-.board-page__editor-section {
-	position: relative;
-	flex: 1;
-	min-height: 0;
-}
-
-.board-page__editor-shell {
-	height: 100%;
-	max-width: 100%;
-	margin: 0 auto;
-	border-radius: 0.75rem;
-	border: 1px solid var(--gray-thin);
-	background: color-mix(in srgb, var(--bg-darker) 85%, transparent);
-	overflow: hidden;
+.excalidraw-wrapper .App-menu__left {
+  display: none !important;
 }

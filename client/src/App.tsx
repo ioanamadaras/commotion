@@ -1,30 +1,23 @@
 import { Route, Routes } from "react-router-dom";
+import SettingsModal from "./components/SettingsModal";
 import Board from "./pages/Board";
-import Sidebar from "./app-components/Sidebar";
 import Home from "./pages/Home";
-import { useState } from "react";
-import SettingsModal from "./app-components/SettingsModal";
+import { _useContext } from "./Context";
+import Sidebar from "./components/Sidebar";
 
 function App() {
-	const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
-	const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-
+    const { state } = _useContext();
 	return (
-		<div>
-			<Sidebar
-				isAccountModalOpen={isAccountModalOpen}
-				setIsAccountModalOpen={setIsAccountModalOpen}
-				isSidebarCollapsed={isSidebarCollapsed}
-				setIsSidebarCollapsed={setIsSidebarCollapsed}
-			/>
+		<div className="w-screen h-full min-h-screen flex">
+            <Sidebar />
 
 			<Routes>
 				<Route path="/" element={<Home />} />
-				<Route path="/board" element={<Board />} />
+				<Route path="/board/:id" element={<Board />} />
 			</Routes>
 
 			{/* Account modal */}
-			{isAccountModalOpen && <SettingsModal setIsAccountModalOpen={setIsAccountModalOpen} />}
+			{state.isModalOpen && <SettingsModal />}
 		</div>
 	);
 }
