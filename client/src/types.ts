@@ -5,7 +5,10 @@ export type UserType = {
 	lastPulseTimeStamp?: Date;
 	avatarURL?: string;
 	selectedTeam?: string;
+    personalNotes?: NoteType[];
 };
+
+export type NoteType = {} // todo
 
 export type ContextType = {
 	/**
