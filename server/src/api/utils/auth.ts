@@ -1,0 +1,26 @@
+import { Request } from 'express';
+import jwt, { JwtPayload } from 'jsonwebtoken';
+import userModel, { UserDocument } from '../models/userModel';
+
+type TokenPayload = JwtPayload & { userId?: string };
+
+export async function getAuthenticatedUser(req: Request): Promise<UserDocument | null> {
+    try {
+        const token = req.headers.authorization?.trim();
+        if (!token) return null;
+
+        const decodedToken = jwt.verify(token, process.env.JWT_SECRET ?? '');
+        if (typeof decodedToken === 'string') return null;
+
+        const payload = decodedToken as TokenPayload;
+        if (!payload.userId) return null;
+
+        const user = await userModel.findById(payload.userId).select('-password');
+        if (!user) return null;
+
+        return user as UserDocument;
+    }
+    catch {
+        return null;
+    }
+}

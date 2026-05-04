@@ -2,6 +2,7 @@ import express, { Response, Request } from 'express';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import userModel from '../models/userModel';
 import bcrypt from 'bcrypt';
+import { getAuthenticatedUser } from '../utils/auth';
 
 const router = express.Router();
 
@@ -27,11 +28,9 @@ router.post('/register', async (req: Request, res: Response) => {
         // Save the new user to the database
         await newUser.save();
 
-        // @ts-ignore
-        const userId = userModel.findOne({ email }).id ?? "";
-        const payload = { userId: userId }; // Create a JWT payload with the user's ID
+        const payload = { userId: newUser._id };
         const token = jwt.sign(payload, process.env.JWT_SECRET ?? "", { expiresIn: '30d' }); // Sign the JWT for 30 days
-        res.status(200).json({token});    
+        res.status(201).json({token});    
     }
     catch(err){
         console.error(err);
@@ -40,7 +39,7 @@ router.post('/register', async (req: Request, res: Response) => {
 });
 
 // Log in a user
-router.post('/login', async (req: Request, res: Response) => {
+router.put('/login', async (req: Request, res: Response) => {
     try {
         const { email, password } = req.body;
 
@@ -54,7 +53,7 @@ router.post('/login', async (req: Request, res: Response) => {
 
         // Generate a JWT with the user's ID
         const payload: JwtPayload = { userId: user._id }; 
-        const token = jwt.sign(payload, process.env.JWT_SECRET ?? "", { expiresIn: '30d' }); // Sign the JWT for 1
+        const token = jwt.sign(payload, process.env.JWT_SECRET ?? "", { expiresIn: '30d' }); // creez tokenul pentru 30 de zile
 
         // SUCCESS
         res.status(200).json({token});
@@ -65,24 +64,32 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 });
 
-// Get the currently logged in user, you might need this when you want to display the user's name in the navbar for example
-router.get('/getUserFromCookie', async (req: Request, res: Response) => { 
+// Get the authenticated user's information
+router.get('/me', async (req: Request, res: Response) => { 
     try {
-        const authHeader = req.headers['authorization'];
-        const token = authHeader && authHeader.split(' ')[1];
-        
-        if (!token) return res.sendStatus(401); // Unauthorized
+        const authenticatedUser = await getAuthenticatedUser(req);
+        if (!authenticatedUser) return res.status(401).json({ error: 'Unauthorized' });
 
-        // Verify the JWT and extract the user's ID
-        const decodedToken = jwt.verify(token, process.env.JWT_SECRET || "");
-        const userId = (typeof decodedToken === 'string') ? "" : decodedToken.userId;
-
-        // Find the user in the database
-        const user = await userModel.findById(userId).select('-password'); // Exclude the password from the returned data
-        if (!user) return res.status(401).json({ error: 'Unauthorized' });
-
-        res.status(200).json(user);
+        res.status(200).json(authenticatedUser);
     } 
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// uploads an avatar image (received from frontend as base64 string)
+router.put('/avatar', async (req: Request, res: Response) => {
+    try {
+        const authenticatedUser = await getAuthenticatedUser(req);
+        if (!authenticatedUser) return res.status(401).json({ error: 'Unauthorized' });
+
+        const { avatarBase64 } = req.body;
+        authenticatedUser.avatarBase64 = avatarBase64;
+        await authenticatedUser.save();
+
+        return res.status(200).json({ message: 'Avatar updated successfully!' });
+    }
     catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Server error' });

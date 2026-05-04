@@ -1,18 +1,49 @@
-import mongoose from 'mongoose'; 
+import mongoose, { HydratedDocument, Types } from 'mongoose';
 
-const userSchema = new mongoose.Schema({ 
+export interface IUser {
+    username: string;
+    email: string;
+    password: string;
+    avatarBase64: string;
+    lastPulseTimeStamp: Date;
+    selectedTeamId: Types.ObjectId | null;
+}
+
+export type UserDocument = HydratedDocument<IUser>;
+
+const userSchema = new mongoose.Schema<IUser>({
     username: {
         type: String,
-        required: true
+        required: true,
+        unique: true,
+        trim: true
     },
     email: {
         type: String,
-        required: true
+        required: true,
+        unique: true,
+        lowercase: true,
+        trim: true
     },
     password: {
         type: String,
         required: true
+    },
+    avatarBase64: {
+        type: String,
+        default: ""
+    },
+    lastPulseTimeStamp: {
+        type: Date,
+        default: Date.now // cand se creeaza un user, ii setez timestamp-ul la momentul curent
+    },
+    selectedTeamId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Team',
+        default: null
     }
-},{ versionKey: false }); // Disable version key
+}, {
+    versionKey: false
+});
 
-export default mongoose.model('User', userSchema);
+export default mongoose.model<IUser>('User', userSchema);
