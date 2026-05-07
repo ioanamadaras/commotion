@@ -3,7 +3,7 @@ import type { ContextType, StateType, UserType } from './types';
 
 const MockUser: UserType = {
 	_id: 'feanfoianfae1r',
-	username: 'Nana',
+	username: Math.random() < 0.2 ? 'Nana' : Math.random() < 0.4 ? 'Deiu' : Math.random() > 0.5 ? 'Alex' : 'Sexy',
 	email: 'mioana123@gmail.com',
 	avatarURL: 'https://lh3.googleusercontent.com/ogw/AF2bZyhvmgVKbFGZoyxIAIO0yJeg3go9pOH_AH9OqhwlAgKiqAM=s64-c-mo',
 	lastPulseTimeStamp: new Date(Date.now()),
