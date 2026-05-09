@@ -6,7 +6,7 @@ import { Excalidraw } from '@excalidraw/excalidraw';
 import { socket } from '@/lib/socket';
 import '@excalidraw/excalidraw/index.css';
 import './board.css';
-import { getUserColor } from '@/utils/colors';
+import Cursor from '@/components/Cursor';
 
 function getDocumentTheme() {
 	const currentTheme = document.documentElement.getAttribute('data-theme');
@@ -80,7 +80,7 @@ export default function Board() {
 		return {
 			...appState,
 
-			// Nu vrem să sincronizăm stări locale de UI.
+			// Nu vrem sa sincronizam stari locale de UI.
 			collaborators: undefined,
 			selectedElementIds: undefined,
 			selectedGroupIds: undefined,
@@ -89,20 +89,13 @@ export default function Board() {
 		};
 	}, []);
 
-	const saveLatestScene = useCallback(
-		(
-			elements: readonly any[],
-			appState: any,
-			files?: Record<string, any>,
-		) => {
-			latestSceneRef.current = {
-				elements: [...elements],
-				appState: getCleanAppState(appState),
-				files,
-			};
-		},
-		[getCleanAppState],
-	);
+	const saveLatestScene = useCallback((elements: readonly any[], appState: any, files?: Record<string, any>) => {
+        latestSceneRef.current = {
+            elements: [...elements],
+            appState: getCleanAppState(appState),
+            files,
+        };
+    }, [getCleanAppState]);
 
 	const emitBoardUpdate = useCallback(() => {
 		if (!boardId || !userId) return;
@@ -115,7 +108,7 @@ export default function Board() {
 		socket.emit('board:update', {
 			boardId,
 			elements: scene.elements,
-			appState: scene.appState,
+			// appState: {},
 			files: scene.files,
 		});
 	}, [boardId, userId]);
@@ -193,7 +186,7 @@ export default function Board() {
 			socket.emit('board:sync-response', {
 				requesterSocketId,
 				elements,
-				appState,
+				appState: {},
 				files,
 			});
 		};
@@ -265,18 +258,10 @@ export default function Board() {
 	}, [boardId, userId, username, applyRemoteScene, getCleanAppState]);
 
 	return (
-		<main>
+		<main style={{padding: 0}}>
 			<section className="w-full flex flex-col justify-between items-center">
-				<div className="flex">
-					<h3>hi: {boardId}</h3>
-
-					{selectedTeam ? (
-						<MultipleUsersBubble members={selectedTeam.members} />
-					) : null}
-				</div>
-
 				<div
-					className={`w-full h-screen excalidraw-wrapper theme--${theme}`}
+					className={`w-full h-screen excalidraw-wrapper flex justify-center theme--${theme}`}
 					onPointerMove={(event) => {
 						if (!boardId || !userId) return;
 						if (!socket.connected) return;
@@ -293,52 +278,56 @@ export default function Board() {
 					}}
 				>
 					{remoteCursors.map((cursor) => (
-						<div
-							key={cursor.socketId}
-							style={{
-								position: 'fixed',
-								left: cursor.x,
-								top: cursor.y,
-								pointerEvents: 'none',
-								background: getUserColor(cursor.username),
-								color: 'white',
-								padding: '4px 8px',
-								borderRadius: '8px',
-								fontSize: '12px',
-								zIndex: 9999,
-								transform: 'translate(8px, 8px)',
-								whiteSpace: 'nowrap',
-							}}
-						>
-							{cursor.username}
-						</div>
+                        <Cursor 
+                            key={cursor.socketId}
+                            socketId={cursor.socketId}
+                            userId={cursor.userId}
+                            username={cursor.username}
+                            x={cursor.x}
+                            y={cursor.y}
+                        />
 					))}
 
-					<Excalidraw
-						theme={theme}
-						isCollaborating={true}
-						excalidrawAPI={(api) => {
-							excalidrawApiRef.current = api;
-						}}
-						onChange={(elements, appState, files) => {
-							if (isApplyingRemoteUpdateRef.current) return;
+                    {selectedTeam ? (
+                        <div className="absolute mx-auto bottom-4 z-10">
+						    <MultipleUsersBubble members={selectedTeam.members} bg="var(--bg)" />
+                        </div>
+					) : null}
 
-							saveLatestScene(elements, appState, files);
-							scheduleBoardUpdate();
-						}}
-						renderTopRightUI={() => null}
-						UIOptions={{
-							canvasActions: {
-								changeViewBackgroundColor: false,
-								clearCanvas: false,
-								export: false,
-								loadScene: false,
-								saveAsImage: false,
-								saveToActiveFile: false,
-								toggleTheme: null,
-							},
-						}}
-					/>
+					<Excalidraw
+                        initialData={{
+                            appState: {
+                                gridSize: 100,
+                                gridModeEnabled: true,
+                                gridStep: 1,
+                                theme: theme,
+                                // snapLines: true
+                            },
+                        }}
+                        isCollaborating={true}
+                        excalidrawAPI={(api) => {
+                            excalidrawApiRef.current = api;
+                        }}
+                        onChange={(elements, appState, files) => {
+                            if (isApplyingRemoteUpdateRef.current) return;
+
+                            saveLatestScene(elements, appState, files);
+                            scheduleBoardUpdate();
+                        }}
+                        // renderTopRightUI={() => null}
+                        UIOptions={{
+                            canvasActions: {
+                                changeViewBackgroundColor: true,
+
+                            //   clearCanvas: false,
+                            //   export: false,
+                            //   loadScene: false,
+                            //   saveAsImage: false,
+                            //   saveToActiveFile: false,
+                            //   toggleTheme: null,
+                            },
+                        }}
+                    />
 				</div>
 			</section>
 		</main>

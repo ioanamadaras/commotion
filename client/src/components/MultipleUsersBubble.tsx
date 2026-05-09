@@ -8,15 +8,15 @@ export default function MultipleUsersBubble({ members, bg = "var(--bg)" }: { mem
     let membersToRender = members;
 
     // daca sunt prea multi, afiseaza primii 4 cei mai activi + un bubble cu cati mai sunt
-    if (members.length > USER_LIMIT - 1) {
+    if (members.length > USER_LIMIT) {
         membersToRender = members
             .filter((u) => u.lastPulseTimeStamp)
             .sort((a, b) => b.lastPulseTimeStamp!.getTime() - a.lastPulseTimeStamp!.getTime())
-            .slice(0, USER_LIMIT - 1);
+            .slice(0, USER_LIMIT);
         
         membersToRender.push({
             _id: 'more_members',
-            username: `+${members.length - USER_LIMIT + 1}`,
+            username: `+${members.length - USER_LIMIT}`,
             email: '',
         })
     }

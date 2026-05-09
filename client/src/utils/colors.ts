@@ -5,5 +5,5 @@ export function getUserColor(userId: string) {
         hash = userId.charCodeAt(i) + ((hash << 5) - hash);
     }
     const hue = hash % 360;
-    return `hsl(${hue}, 50%, 50%)`;
+    return `hsl(${hue}, 60%, 45%)`;
 }

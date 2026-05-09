@@ -210,7 +210,7 @@ export default function Sidebar() {
 
 				<button
 					type="button"
-					className="mt-auto flex h-12 w-full items-center gap-3 rounded-md text-left cursor-pointer"
+					className="mt-auto flex h-10 w-full items-center gap-3 rounded-md text-left cursor-pointer"
 					aria-label="Open account settings"
 				>
 					<span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-(--text)">

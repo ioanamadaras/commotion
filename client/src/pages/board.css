@@ -19,6 +19,12 @@
   --color-primary-light: #dcbec9;
 }
 
-.excalidraw-wrapper .App-menu__left {
-  display: none !important;
+.board-wrapper {
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+}
+
+.board-wrapper .excalidraw {
+  background: var(--bg);
 }
