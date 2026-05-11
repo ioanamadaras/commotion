@@ -21,3 +21,13 @@ export const getUserInitials = (username: string = ""): string => {
 
     return (firstInitial + secondInitial).toUpperCase() || '?';
 };
+
+/** Constructs a color for a user's avatar, using their USERNAME as a seed */
+export function getUserColor(name: string) {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = hash % 360;
+    return `hsl(${hue}, 60%, 45%)`;
+}

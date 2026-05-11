@@ -1,15 +1,3 @@
-export type UserType = {
-	_id: string;
-	username: string;
-	email: string;
-	lastPulseTimeStamp?: Date;
-	avatarURL?: string;
-	selectedTeam?: string;
-    personalNotes?: NoteType[];
-};
-
-export type NoteType = {} // todo
-
 export type ContextType = {
 	/**
 	 * App's global state object
@@ -19,6 +7,10 @@ export type ContextType = {
 	 * Sets the app's global state object via dispatch
 	 */
 	setState: React.Dispatch<React.SetStateAction<StateType>>;
+    /**
+     * Changes the theme color
+     */
+    toggleTheme: () => void;
 };
 
 export type StateType = {
@@ -33,15 +25,44 @@ export type StateType = {
 	/**
 	 * The currently logged in user
 	 */
-	user: UserType;
+	user: UserType | null;
 	/**
 	 * The teams the user is a part of
 	 */
 	teams: TeamType[];
+
+    selectedTeamBoards: BoardType[];
+    personalBoards: BoardType[];
+};
+
+export type UserType = {
+	_id: string;
+	username: string;
+	email: string;
+	lastPulseTimeStamp?: Date;
+	selectedTeamId?: string;
 };
 
 export type TeamType = {
 	_id: string;
 	name: string;
+    owner: string;
 	members: UserType[];
 };
+
+export type BoardType = {
+    _id: string;
+    title: string;
+    owner: string;
+    isPersonal: boolean;
+    teamId: string | null;
+    boardData: {
+        type: string;
+        version: number;
+        elements: unknown[];
+        appState: Record<string, unknown>;
+        files: Record<string, unknown>;
+    };
+    createdAt: Date;
+    updatedAt: Date;
+}

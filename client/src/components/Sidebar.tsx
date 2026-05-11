@@ -2,93 +2,49 @@ import { useState } from "react";
 import { _useContext } from "../Context";
 import Logo from "./Logo";
 import { Link } from "react-router-dom";
-
-type SidebarNote = {
-	_id: string;
-	title: string;
-	teamId: string;
-	ownerId: string;
-	shared: boolean;
-	updatedAt: string;
-};
-
-const sidebarNotes: SidebarNote[] = [
-	{
-		_id: "note-1",
-		title: "Weekly planning",
-		teamId: "team1",
-		ownerId: "feanfoianfae1r",
-		shared: true,
-		updatedAt: "2h ago",
-	},
-	{
-		_id: "note-2",
-		title: "Sprint retro",
-		teamId: "team1",
-		ownerId: "1213i1no31inadaaaccaacac",
-		shared: true,
-		updatedAt: "Yesterday",
-	},
-	{
-		_id: "note-3",
-		title: "Personal sketch",
-		teamId: "team1",
-		ownerId: "feanfoianfae1r",
-		shared: false,
-		updatedAt: "Just now",
-	},
-	{
-		_id: "note-4",
-		title: "Board outline",
-		teamId: "team123",
-		ownerId: "1n23oin23",
-		shared: true,
-		updatedAt: "4d ago",
-	},
-	{
-		_id: "note-5",
-		title: "Private idea dump",
-		teamId: "team123",
-		ownerId: "feanfoianfae1r",
-		shared: false,
-		updatedAt: "1w ago",
-	},
-];
+import { getUserColor, getUserInitials } from "@/utils/user";
+import { formatDateLocale } from "@/utils/time";
 
 export default function Sidebar() {
 	const { state, setState } = _useContext();
-	const { teams, isSidebarOpen, user } = state;
+	const { teams, isSidebarOpen, isModalOpen, user } = state;
 	const [searchQuery, setSearchQuery] = useState("");
-	const [noteFilter, setNoteFilter] = useState<"all" | "mine" | "shared">("all");
+	const [boardFilter, setBoardFilter] = useState<"all" | "mine" | "shared">("all");
+
+	if (!user) {
+		return null;
+	}
 
 	function toggleSidebar(newValue: boolean) {
 		setState((prev) => ({ ...prev, isSidebarOpen: newValue }));
 	}
 
-	const selectedTeam = teams.find((team) => team._id === user.selectedTeam) ?? teams[0];
+	const selectedTeam = teams.find((team) => team._id === user.selectedTeamId) ?? teams[0];
+    
 	const normalizedQuery = searchQuery.trim().toLowerCase();
-	const teamNotes = selectedTeam
-		? sidebarNotes.filter((note) => {
-				const matchesTeam = note.teamId === selectedTeam._id;
+	const teamBoards = selectedTeam
+		? state.selectedTeamBoards.filter((board) => {
+				const matchesTeam = board.teamId === selectedTeam._id;
 				const matchesFilter =
-					noteFilter === "all"
+					boardFilter === "all"
 						? true
-						: noteFilter === "mine"
-							? note.ownerId === user._id
-							: note.shared;
+						: boardFilter === "mine"
+							? board.owner === user._id
+							: board.boardData; //todo
 				const matchesSearch =
 					normalizedQuery.length === 0
 						? true
-						: note.title.toLowerCase().includes(normalizedQuery);
+						: board.title.toLowerCase().includes(normalizedQuery);
 
 				return matchesTeam && matchesFilter && matchesSearch;
 			})
 		: [];
 
+    const shouldShowSidebar = isSidebarOpen || isModalOpen;
 	return (
 		<div
 			className="w-full h-screen bg-red-400 transition-all overflow-hidden"
-			style={{ maxWidth: isSidebarOpen ? "min(50vw, 17rem)" : "4rem" }}
+			style={{ maxWidth: shouldShowSidebar ? "min(50vw, 17rem)" : "4rem" }}
 		>
 			<aside
 				className="h-full w-full p-[var(--padding)] bg-[var(--bg)] border-r flex flex-col gap-3 overflow-hidden"
@@ -101,7 +57,7 @@ export default function Sidebar() {
 					<span className="py-1 min-w-[2rem] min-h-[2rem]">
 						<Logo />
 					</span>
-					<span style={{ display: isSidebarOpen ? "inline" : "none", fontSize: "1.5rem" }}>
+					<span style={{ display: shouldShowSidebar ? "inline" : "none", fontSize: "1.5rem" }}>
 						Co<strong>motion</strong>
 					</span>
 				</div>
@@ -113,7 +69,7 @@ export default function Sidebar() {
 						</svg>
 					</span>
 
-					{isSidebarOpen ? <span>New&nbsp;Note</span> : null}
+					{shouldShowSidebar ? <span>New&nbsp;board</span> : null}
 				</div>
 
 				<hr />
@@ -125,28 +81,28 @@ export default function Sidebar() {
 						</svg>
 					</span>
 
-					{isSidebarOpen ? (
+					{shouldShowSidebar ? (
 						<input
 							type="text"
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
-							placeholder="Search notes"
-							aria-label="Search notes"
+							placeholder="Search boards"
+							aria-label="Search boards"
 							className="w-full min-w-0 bg-transparent outline-none text-(--text) placeholder:text-(--text) placeholder:opacity-60"
 						/>
 					) : null}
 				</div>
 
-				{isSidebarOpen ? (
+				{shouldShowSidebar ? (
 					<>
 						<div className="flex flex-wrap gap-1">
 							{(["all", "mine", "shared"] as const).map((filter) => (
 								<button
 									key={filter}
 									type="button"
-									onClick={() => setNoteFilter(filter)}
+									onClick={() => setBoardFilter(filter)}
 									className={`h-8 rounded-full border px-3 text-xs capitalize transition-colors cursor-pointer ${
-										noteFilter === filter
+										boardFilter === filter
 											? "bg-(--text) text-(--bg)"
 											: "border-(--text) bg-(--bg) hover:bg-(--bg-darker)"
 									}`}
@@ -162,30 +118,30 @@ export default function Sidebar() {
 									<div className="p-3 text-sm opacity-70">
 										No team selected yet.
 									</div>
-								) : teamNotes.length === 0 ? (
+								) : teamBoards.length === 0 ? (
 									<div className="p-3 text-sm opacity-70">
-										No notes match these filters.
+										No boards match these filters.
 									</div>
 								) : (
-									teamNotes.map((note) => (
+									teamBoards.map((board) => (
 										<Link 
-                                            to={`/board/${note._id}`}
-											key={note._id}
+                                            to={`/board/${board._id}`}
+											key={board._id}
 											type="button"
 											className="group cursor-pointer flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left hover:bg-(--bg-darker)"
 
 										>
 											<div className="min-w-0">
-												<h5 className="truncate text-sm -mb-[5px]">{note.title}</h5>
-												<span className="text-[0.7rem] opacity-60">{note.updatedAt}</span>
+												<h5 className="truncate text-sm -mb-[5px]">{board.title}</h5>
+												<span className="text-[0.7rem] opacity-60">{formatDateLocale(board.updatedAt)}</span>
 											</div>
 
 											<span
 												className="shrink-0 rounded-full"
-												aria-label={note.shared ? "Public note" : "Private note"}
-												title={note.shared ? "Public note" : "Private note"}
+												aria-label={!board.isPersonal ? "Public board" : "Private board"}
+												title={!board.isPersonal ? "Public board" : "Private board"}
 											>
-												{note.shared ? (
+												{!board.isPersonal ? (
 													<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-4 h-4">
 														<path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9 9 0 100-18 9 9 0 000 18z" />
 														<path strokeLinecap="round" strokeLinejoin="round" d="M3.6 9h16.8" />
@@ -210,18 +166,21 @@ export default function Sidebar() {
 
 				<button
 					type="button"
-					className="mt-auto flex h-10 w-full items-center gap-3 rounded-md text-left cursor-pointer"
+					className="mt-auto flex h-12 w-full items-center gap-3 rounded-md text-left cursor-pointer hover:bg-(--bg-darker) transition-all"
+                    style={{ padding: shouldShowSidebar ? "0.4rem" : "0"}}
 					aria-label="Open account settings"
+                    onClick={(e) => {
+                        e.preventDefault();
+                        setState(prev => ({...prev, isModalOpen: true }))
+                    }}
 				>
-					<span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-(--text)">
-						{user.avatarURL ? (
-							<img src={user.avatarURL} alt={user.username} className="h-full w-full object-cover" />
-						) : (
-							<span className="text-sm font-semibold">{user.username.slice(0, 1)}</span>
-						)}
+					<span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-(--text)"
+                        style={{background: getUserColor(user.username)}}
+                    >
+						<span className="text-sm font-semibold text-white!">{getUserInitials(user.username)}</span>
 					</span>
 
-					{isSidebarOpen ? (
+					{shouldShowSidebar ? (
 						<span className="min-w-0">
 							<span className="block truncate text-sm font-medium">{user.username}</span>
 							<span className="block truncate text-[0.7rem] opacity-60">{selectedTeam?.name ?? "No team selected"}</span>

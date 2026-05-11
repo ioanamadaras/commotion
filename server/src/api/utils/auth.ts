@@ -6,7 +6,11 @@ type TokenPayload = JwtPayload & { userId?: string };
 
 export async function getAuthenticatedUser(req: Request): Promise<UserDocument | null> {
     try {
-        const token = req.headers.authorization?.trim();
+        const authHeader = req.headers.authorization?.trim();
+        const token = authHeader?.startsWith('Bearer ')
+            ? authHeader.slice('Bearer '.length).trim()
+            : authHeader;
+
         if (!token) return null;
 
         const decodedToken = jwt.verify(token, process.env.JWT_SECRET ?? '');

@@ -4,7 +4,6 @@ export interface IUser {
     username: string;
     email: string;
     password: string;
-    avatarBase64: string;
     lastPulseTimeStamp: Date;
     selectedTeamId: Types.ObjectId | null;
 }
@@ -28,10 +27,6 @@ const userSchema = new mongoose.Schema<IUser>({
     password: {
         type: String,
         required: true
-    },
-    avatarBase64: {
-        type: String,
-        default: ""
     },
     lastPulseTimeStamp: {
         type: Date,

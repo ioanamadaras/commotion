@@ -8,8 +8,8 @@ export default function Home() {
     return (
         <main>
             <div className="flex w-full justify-between items-center px-2">
-                <h1 className="mobilehidden">{getGreeting(state.user.username)}</h1>
-                <h1 className="mobileonly">Hi, {state.user.username}!</h1>
+                <h1 className="mobilehidden">{getGreeting(state?.user?.username ?? "")}</h1>
+                <h1 className="mobileonly">Hi, {state.user?.username}!</h1>
 
             </div>
         </main>

@@ -1,7 +1,6 @@
 import type { UserType } from "../types";
-import { getUserColor } from "../utils/colors";
 import { isUserActive } from "../utils/time";
-import { getUserInitials } from "@/utils/user";
+import { getUserInitials, getUserColor } from "@/utils/user";
 
 export default function UserBubble({member, bg}: {member: UserType; bg: string}) {
     let isUserActiveStatus = isUserActive(member.lastPulseTimeStamp);
@@ -17,10 +16,7 @@ export default function UserBubble({member, bg}: {member: UserType; bg: string})
                 className="capitalize text-white rounded-full w-full h-full flex items-center justify-center"
                 style={{ backgroundColor: isPlus ? "gray" : getUserColor(member.username) }}
             >
-                {member.avatarURL && false
-                    ? <img src={member.avatarURL} alt={member.username} className="rounded-full w-full h-full object-cover" />
-                    : getUserInitials(member.username)
-                }
+                {getUserInitials(member.username)}
             </span>
             {!isPlus ?
                 <div className="absolute rounded-full bottom-0.5 right-0.5 w-4 h-4">

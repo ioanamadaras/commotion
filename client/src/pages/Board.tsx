@@ -44,13 +44,18 @@ type SceneSnapshot = {
 export default function Board() {
 	const { state } = _useContext();
 	const params = useParams();
+	const user = state.user;
+
+	if (!user) {
+		return null;
+	}
 
 	const boardId = params.id;
-	const userId = state.user._id;
-	const username = state.user.username ?? 'User';
+	const userId = user._id;
+	const username = user.username ?? 'User';
 
 	const selectedTeam =
-		state.teams.find((team) => team._id === state.user.selectedTeam) ??
+		state.teams.find((team) => team._id === user.selectedTeamId) ??
 		state.teams[0];
 
 	const [theme, setTheme] = useState<'light' | 'dark'>(getDocumentTheme());
@@ -180,7 +185,6 @@ export default function Board() {
 			if (!api) return;
 
 			const elements = api.getSceneElements();
-			const appState = getCleanAppState(api.getAppState());
 			const files = api.getFiles?.();
 
 			socket.emit('board:sync-response', {
@@ -277,11 +281,10 @@ export default function Board() {
 						});
 					}}
 				>
-					{remoteCursors.map((cursor) => (
+						{remoteCursors.map((cursor) => (
                         <Cursor 
                             key={cursor.socketId}
                             socketId={cursor.socketId}
-                            userId={cursor.userId}
                             username={cursor.username}
                             x={cursor.x}
                             y={cursor.y}

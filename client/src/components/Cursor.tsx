@@ -1,21 +1,17 @@
-import { getUserColor } from "@/utils/colors";
+import { getUserColor } from "@/utils/user";
 
 export default function Cursor({
 	socketId,
-	userId,
 	username,
 	x,
 	y,
 }: {
 	socketId: string;
-	userId: string;
 	username: string;
 	x: number;
 	y: number;
 }) {
     const userColor = getUserColor(username);
-
-    console.log("Rendering cursor for user", username, "at position", x, y, "with color", userColor);
 	return (
 		<div
 			key={socketId}

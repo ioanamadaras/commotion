@@ -30,7 +30,14 @@ router.post('/register', async (req: Request, res: Response) => {
 
         const payload = { userId: newUser._id };
         const token = jwt.sign(payload, process.env.JWT_SECRET ?? "", { expiresIn: '30d' }); // Sign the JWT for 30 days
-        res.status(201).json({token});    
+        
+        // SUCCESS
+        res.status(200).json({
+            token, 
+            email: newUser.email, 
+            username: newUser.username, 
+            _id: newUser._id
+        });  
     }
     catch(err){
         console.error(err);
@@ -56,7 +63,13 @@ router.put('/login', async (req: Request, res: Response) => {
         const token = jwt.sign(payload, process.env.JWT_SECRET ?? "", { expiresIn: '30d' }); // creez tokenul pentru 30 de zile
 
         // SUCCESS
-        res.status(200).json({token});
+        res.status(200).json({
+            token, 
+            email: user.email, 
+            username: user.username, 
+            selectedTeamId: user.selectedTeamId,
+            _id: user._id
+        });
     }
     catch(err){
         console.error(err);
@@ -70,26 +83,13 @@ router.get('/me', async (req: Request, res: Response) => {
         const authenticatedUser = await getAuthenticatedUser(req);
         if (!authenticatedUser) return res.status(401).json({ error: 'Unauthorized' });
 
-        res.status(200).json(authenticatedUser);
+        const user = authenticatedUser.toObject();
+
+        res.status(200).json({
+            ...user,
+            selectedTeam: user.selectedTeamId ? String(user.selectedTeamId) : undefined,
+        });
     } 
-    catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
-
-// uploads an avatar image (received from frontend as base64 string)
-router.put('/avatar', async (req: Request, res: Response) => {
-    try {
-        const authenticatedUser = await getAuthenticatedUser(req);
-        if (!authenticatedUser) return res.status(401).json({ error: 'Unauthorized' });
-
-        const { avatarBase64 } = req.body;
-        authenticatedUser.avatarBase64 = avatarBase64;
-        await authenticatedUser.save();
-
-        return res.status(200).json({ message: 'Avatar updated successfully!' });
-    }
     catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Server error' });
