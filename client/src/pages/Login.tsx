@@ -31,10 +31,7 @@ export default function Login() {
             // updatam obiectul react din context
             setState(prev => ({
                 ...prev, 
-                user: {
-                    ...user,
-                    selectedTeam: user.selectedTeamId ?? undefined,
-                }
+                user,
             }));
 
             // salvam doar tokenul in localStorage

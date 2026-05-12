@@ -3,7 +3,6 @@ import mongoose, { Types } from 'mongoose';
 export interface IBoard {
     title: string;
     owner: Types.ObjectId;
-    isPersonal: boolean;
 
     editorUsersIds: string[];
     viewerUserIds: string[];
@@ -29,10 +28,6 @@ const boardSchema = new mongoose.Schema<IBoard>({
         required: true,
         default: 'Untitled board',
         trim: true
-    },
-    isPersonal: {
-        type: Boolean,
-        default: true
     },
     joinKey: {
         type: String,

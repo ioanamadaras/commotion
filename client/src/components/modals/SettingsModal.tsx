@@ -1,5 +1,4 @@
 import { _useContext } from '@/Context';
-import Toggle from '../Toggle';
 import PopoverShell from './PopoverShell';
 import { useNavigate } from 'react-router-dom';
 import type { AnchorRect, ModalPlacement } from '@/types';

@@ -37,11 +37,14 @@ export default function ModalShell({
 					<h3 className="text-base font-semibold">{title}</h3>
 					<button
 						type="button"
-						className="rounded-md px-2 py-1 text-sm opacity-70 transition hover:bg-[var(--bg-darker)] hover:opacity-100"
+						className="rounded-md p-1 opacity-70 transition hover:bg-[var(--bg-darker)] hover:opacity-100"
 						onClick={onClose}
 						aria-label="Close modal"
 					>
-						Close
+						<svg fill="var(--text)" className="size-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+							<path d="M19 5L5 19" stroke="var(--text)" strokeWidth="1.5" strokeLinecap="round" />
+							<path d="M5 5L19 19" stroke="var(--text)" strokeWidth="1.5" strokeLinecap="round" />
+						</svg>
 					</button>
 				</div>
 

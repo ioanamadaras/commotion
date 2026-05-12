@@ -29,13 +29,12 @@ export default function Register() {
 
 			localStorage.setItem("token", data.token);
 
+			const { token, ...user } = data;
+
             // updatam obiectul react din context
             setState(prev => ({
                 ...prev, 
-                user: {
-                    ...data,
-                    selectedTeam: data.selectedTeam ?? data.selectedTeamId ?? undefined,
-                }
+                user,
             }));
 
 			navigate("/");

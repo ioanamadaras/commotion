@@ -9,10 +9,7 @@ const router = express.Router();
 const serializeUser = (user: any) => {
     const { password, ...safeUser } = user.toObject();
 
-    return {
-        ...safeUser,
-        selectedTeamId: user.selectedTeamId ? String(user.selectedTeamId) : null,
-    };
+    return safeUser;
 };
 
 // Registers a new user and returns a JWT plus the user profile.

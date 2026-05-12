@@ -109,6 +109,10 @@ hr {
 	border-color: var(--gray) !important;
 }
 
+button {
+    cursor: pointer !important;
+}
+
 h1,
 h2,
 h3,

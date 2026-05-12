@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import MultipleUsersBubble from '@/components/MultipleUsersBubble';
 import { _useContext } from '../Context';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Excalidraw } from '@excalidraw/excalidraw';
@@ -8,7 +7,32 @@ import { api } from '@/api';
 import '@excalidraw/excalidraw/index.css';
 import './board.css';
 import Cursor from '@/components/Cursor';
-import type { BoardType } from '@/types';
+import type { BoardRoomUser, BoardType } from '@/types';
+import MultipleUsersBubble from '@/components/MultipleUsersBubble';
+
+type CursorState = {
+	socketId: string;
+	userId: string;
+	username: string;
+	x: number;
+	y: number;
+};
+
+type SceneSnapshot = {
+	elements: any[];
+	appState: Record<string, any>;
+	files: Record<string, any>;
+};
+
+type RemoteScenePayload = SceneSnapshot & {
+	sourceSocketId?: string;
+};
+
+const EMPTY_SCENE: SceneSnapshot = {
+	elements: [],
+	appState: {},
+	files: {},
+};
 
 function getDocumentTheme() {
 	const currentTheme = document.documentElement.getAttribute('data-theme');
@@ -22,73 +46,115 @@ function getDocumentTheme() {
 		: 'light';
 }
 
-type Cursor = {
-	socketId: string;
-	userId: string;
-	username: string;
-	x: number;
-	y: number;
-};
+function getCleanAppState(appState: Record<string, any> = {}) {
+	return {
+		...appState,
+		collaborators: undefined,
+		selectedElementIds: undefined,
+		selectedGroupIds: undefined,
+		editingElement: undefined,
+		editingGroupId: undefined,
+	};
+}
 
-type RemoteScenePayload = {
-	sourceSocketId?: string;
-	elements: any[];
-	appState: any;
-	files?: Record<string, any>;
-};
+function shouldUseIncomingElement(current: any, incoming: any) {
+	if (!current) return true;
 
-type SceneSnapshot = {
-	elements: any[];
-	appState: any;
-	files?: Record<string, any>;
-};
+	const currentVersion = Number(current.version ?? 0);
+	const incomingVersion = Number(incoming.version ?? 0);
+
+	if (incomingVersion !== currentVersion) {
+		return incomingVersion > currentVersion;
+	}
+
+	const currentUpdated = Number(current.updated ?? 0);
+	const incomingUpdated = Number(incoming.updated ?? 0);
+
+	if (incomingUpdated !== currentUpdated) {
+		return incomingUpdated > currentUpdated;
+	}
+
+	return incoming.versionNonce !== current.versionNonce;
+}
+
+function mergeElements(currentElements: readonly any[] = [], incomingElements: readonly any[] = []) {
+	const byId = new Map<string, any>();
+	const order: string[] = [];
+
+	const remember = (element: any) => {
+		if (!element?.id) return;
+		if (!byId.has(element.id)) order.push(element.id);
+		byId.set(element.id, element);
+	};
+
+	currentElements.forEach(remember);
+
+	incomingElements.forEach((element) => {
+		if (!element?.id) return;
+
+		if (!byId.has(element.id)) {
+			order.push(element.id);
+			byId.set(element.id, element);
+			return;
+		}
+
+		if (shouldUseIncomingElement(byId.get(element.id), element)) {
+			byId.set(element.id, element);
+		}
+	});
+
+	return order.map((id) => byId.get(id)).filter(Boolean);
+}
+
+function getElementsSignature(elements: readonly any[] = []) {
+	return elements
+		.map((element) => {
+			if (!element?.id) return '';
+			return [
+				element.id,
+				element.version ?? 0,
+				element.versionNonce ?? '',
+				element.isDeleted ? 1 : 0,
+			].join(':');
+		})
+		.join('|');
+}
+
+function toScene(board?: BoardType | null): SceneSnapshot {
+	return {
+		elements: [...(board?.boardData?.elements ?? [])],
+		appState: getCleanAppState(board?.boardData?.appState ?? {}),
+		files: board?.boardData?.files ?? {},
+	};
+}
 
 export default function Board() {
 	const { state } = _useContext();
 	const navigate = useNavigate();
-	const params = useParams();
+	const { id: boardId } = useParams();
 	const user = state.user;
-	const boardId = params.id;
 	const userId = user?._id;
 	const username = user?.username ?? 'User';
+
 	const [board, setBoard] = useState<BoardType | null>(null);
 	const [boardError, setBoardError] = useState<string | null>(null);
 	const [boardReady, setBoardReady] = useState(false);
-
-	const selectedTeam =
-		user
-			? state.teams.find((team) => team._id === user.selectedTeamId) ??
-			state.teams[0]
-		: null;
-	const canEdit = board?.permissionLevel !== 'viewer';
-
 	const [theme, setTheme] = useState<'light' | 'dark'>(getDocumentTheme());
-	const [remoteCursors, setRemoteCursors] = useState<Cursor[]>([]);
+	const [remoteCursors, setRemoteCursors] = useState<CursorState[]>([]);
+	const [roomUsers, setRoomUsers] = useState<BoardRoomUser[]>([]);
 
 	const excalidrawApiRef = useRef<any>(null);
-	const latestSceneRef = useRef<SceneSnapshot | null>(null);
+	const latestSceneRef = useRef<SceneSnapshot>(EMPTY_SCENE);
 	const isApplyingRemoteUpdateRef = useRef(false);
 	const emitTimerRef = useRef<number | null>(null);
+	const lastCursorEmitRef = useRef(0);
+	const elementsSignatureRef = useRef('');
 
-	const getCleanAppState = useCallback((appState: any) => {
-		return {
-			...appState,
-
-			// Nu vrem sa sincronizam stari locale de UI.
-			collaborators: undefined,
-			selectedElementIds: undefined,
-			selectedGroupIds: undefined,
-			editingElement: undefined,
-			editingGroupId: undefined,
-		};
-	}, []);
+	const canEdit = board?.permissionLevel !== 'viewer';
 
 	useEffect(() => {
 		const root = document.documentElement;
-
-		const observer = new MutationObserver(() => {
-			setTheme(getDocumentTheme());
-		});
+		const observer = new MutationObserver(() => setTheme(getDocumentTheme()));
 
 		observer.observe(root, {
 			attributes: true,
@@ -100,6 +166,7 @@ export default function Board() {
 
 	useEffect(() => {
 		if (!boardId) {
+			setBoard(null);
 			setBoardError('Missing board id');
 			setBoardReady(true);
 			return;
@@ -117,11 +184,9 @@ export default function Board() {
 				if (cancelled) return;
 
 				setBoard(data);
-				latestSceneRef.current = {
-					elements: data.boardData?.elements ?? [],
-					appState: getCleanAppState(data.boardData?.appState ?? {}),
-					files: data.boardData?.files ?? {},
-				};
+				const scene = toScene(data);
+				latestSceneRef.current = scene;
+				elementsSignatureRef.current = getElementsSignature(scene.elements);
 			}
 			catch (err) {
 				console.error(err);
@@ -131,9 +196,7 @@ export default function Board() {
 				}
 			}
 			finally {
-				if (!cancelled) {
-					setBoardReady(true);
-				}
+				if (!cancelled) setBoardReady(true);
 			}
 		}
 
@@ -142,47 +205,19 @@ export default function Board() {
 		return () => {
 			cancelled = true;
 		};
-	}, [boardId, getCleanAppState]);
-
-	const saveLatestScene = useCallback(
-		(elements: readonly any[], appState: any, files?: Record<string, any>) => {
-			latestSceneRef.current = {
-				elements: [...elements],
-				appState: {},
-				files,
-			};
-		},
-		[getCleanAppState],
-	);
+	}, [boardId]);
 
 	const emitBoardUpdate = useCallback(() => {
-		if (!boardId || !userId || !canEdit) return;
-		if (!socket.connected) return;
+		if (!boardId || !userId || !canEdit || !socket.connected) return;
 		if (isApplyingRemoteUpdateRef.current) return;
 
 		const scene = latestSceneRef.current;
-		if (!scene) return;
-
-		const boardData = {
-			type: 'excalidraw',
-			version: 2,
-			elements: scene.elements,
-			appState: {},
-			files: scene.files ?? {},
-		};
 
 		socket.emit('board:update', {
 			boardId,
 			elements: scene.elements,
 			appState: {},
 			files: scene.files,
-		});
-
-		void api(`/board/${boardId}`, {
-			method: 'PUT',
-			body: JSON.stringify({ boardData }),
-		}).catch((err) => {
-			console.error(err);
 		});
 	}, [boardId, canEdit, userId]);
 
@@ -192,30 +227,39 @@ export default function Board() {
 		}
 
 		emitTimerRef.current = window.setTimeout(() => {
-			emitBoardUpdate();
 			emitTimerRef.current = null;
-		}, 80);
+			emitBoardUpdate();
+		}, 250);
 	}, [emitBoardUpdate]);
 
 	const applyRemoteScene = useCallback((payload: RemoteScenePayload) => {
-		if (!excalidrawApiRef.current) return;
+		const api = excalidrawApiRef.current;
+		if (!api) return;
+
+		const currentElements = api.getSceneElements?.() ?? latestSceneRef.current.elements;
+		const currentFiles = api.getFiles?.() ?? latestSceneRef.current.files;
+		const mergedScene: SceneSnapshot = {
+			elements: mergeElements(currentElements, payload.elements),
+			appState: {},
+			files: {
+				...currentFiles,
+				...(payload.files ?? {}),
+			},
+		};
 
 		isApplyingRemoteUpdateRef.current = true;
 
-		if (payload.files && excalidrawApiRef.current.addFiles) {
-			excalidrawApiRef.current.addFiles(Object.values(payload.files));
+		if (payload.files && api.addFiles) {
+			api.addFiles(Object.values(payload.files));
 		}
 
-		excalidrawApiRef.current.updateScene({
-			elements: payload.elements,
-			appState: {},
+		api.updateScene({
+			elements: mergedScene.elements,
+			appState: mergedScene.appState,
 		});
 
-		latestSceneRef.current = {
-			elements: payload.elements,
-			appState: {},
-			files: payload.files,
-		};
+		latestSceneRef.current = mergedScene;
+		elementsSignatureRef.current = getElementsSignature(mergedScene.elements);
 
 		window.setTimeout(() => {
 			isApplyingRemoteUpdateRef.current = false;
@@ -223,13 +267,9 @@ export default function Board() {
 	}, []);
 
 	useEffect(() => {
-		if (!boardId || !userId || !boardReady || !board) {
-			return;
-		}
+		if (!boardId || !userId || !boardReady || !board) return;
 
-		const handleConnect = () => {
-			console.log('Connected to socket:', socket.id);
-
+		const joinBoard = () => {
 			socket.emit('board:join', {
 				boardId,
 				userId,
@@ -242,76 +282,36 @@ export default function Board() {
 			applyRemoteScene(payload);
 		};
 
-		const handleSyncRequest = ({
-			requesterSocketId,
-		}: {
-			requesterSocketId: string;
-		}) => {
-				const api = excalidrawApiRef.current;
+		const handleCursorUpdate = ({ cursor }: { cursor: CursorState }) => {
+			if (!cursor.socketId || cursor.socketId === socket.id) return;
 
-				if (!api) return;
-
-				const elements = api.getSceneElements();
-				const files = api.getFiles?.();
-				const appState = api.getAppState ? getCleanAppState(api.getAppState()) : {};
-
-			socket.emit('board:sync-response', {
-				requesterSocketId,
-				elements,
-				// appState,
-				files,
-			});
-		};
-
-		const handleSyncResponse = (payload: RemoteScenePayload) => {
-			applyRemoteScene(payload);
-		};
-
-		const handleCursorUpdate = ({ cursor }: { cursor: Cursor }) => {
-			if (!cursor.socketId) return;
-			if (cursor.socketId === socket.id) return;
-
-			setRemoteCursors((prev) => {
-				const otherCursors = prev.filter(
-					(c) => c.socketId !== cursor.socketId,
-				);
-				return [...otherCursors, cursor];
-			});
+			setRemoteCursors((prev) => [
+				...prev.filter((c) => c.socketId !== cursor.socketId),
+				cursor,
+			]);
 		};
 
 		const handleCursorRemove = ({ socketId }: { socketId: string }) => {
-			setRemoteCursors((prev) =>
-				prev.filter((c) => c.socketId !== socketId),
-			);
+			setRemoteCursors((prev) => prev.filter((c) => c.socketId !== socketId));
 		};
 
-		const handleUsersChanged = (users: unknown[]) => {
-			console.log('board:users-changed', users);
+		const handleUsersChanged = (users: BoardRoomUser[]) => {
+			setRoomUsers(users);
 		};
 
 		socket.connect();
-
-		socket.on('connect', handleConnect);
+		socket.on('connect', joinBoard);
 		socket.on('board:update', handleBoardUpdate);
-		socket.on('board:sync-request', handleSyncRequest);
-		socket.on('board:sync-response', handleSyncResponse);
 		socket.on('board:users-changed', handleUsersChanged);
 		socket.on('cursor:update', handleCursorUpdate);
 		socket.on('cursor:remove', handleCursorRemove);
 
-		if (socket.connected) {
-			handleConnect();
-		}
+		if (socket.connected) joinBoard();
 
 		return () => {
-			socket.emit('cursor:leave', {
-				boardId,
-			});
-
-			socket.off('connect', handleConnect);
+			socket.emit('cursor:leave', { boardId });
+			socket.off('connect', joinBoard);
 			socket.off('board:update', handleBoardUpdate);
-			socket.off('board:sync-request', handleSyncRequest);
-			socket.off('board:sync-response', handleSyncResponse);
 			socket.off('board:users-changed', handleUsersChanged);
 			socket.off('cursor:update', handleCursorUpdate);
 			socket.off('cursor:remove', handleCursorRemove);
@@ -322,16 +322,36 @@ export default function Board() {
 			}
 
 			socket.disconnect();
-
 			setRemoteCursors([]);
-			latestSceneRef.current = null;
+			setRoomUsers([]);
+			latestSceneRef.current = EMPTY_SCENE;
+			elementsSignatureRef.current = '';
 			isApplyingRemoteUpdateRef.current = false;
 		};
-	}, [board, boardId, boardReady, userId, username, applyRemoteScene, getCleanAppState]);
+	}, [applyRemoteScene, board, boardId, boardReady, userId, username]);
 
-	if (!user) {
-		return null;
-	}
+	const emitCursor = useCallback(
+		(event: React.PointerEvent<HTMLDivElement>) => {
+			if (!boardId || !userId || !socket.connected) return;
+
+			const now = Date.now();
+			if (now - lastCursorEmitRef.current < 50) return;
+			lastCursorEmitRef.current = now;
+
+			socket.volatile.emit('cursor:update', {
+				boardId,
+				cursor: {
+					userId,
+					username,
+					x: event.clientX,
+					y: event.clientY,
+				},
+			});
+		},
+		[boardId, userId, username],
+	);
+
+	if (!user) return null;
 
 	if (!boardReady) {
 		return <main style={{ padding: 0 }} />;
@@ -354,33 +374,14 @@ export default function Board() {
 		);
 	}
 
-	const boardScene = board?.boardData ?? {
-		type: 'excalidraw',
-		version: 2,
-		elements: [],
-		appState: {},
-		files: {},
-	};
+	const boardScene = toScene(board);
 
 	return (
-		<main style={{padding: 0}}>
+		<main style={{ padding: 0 }}>
 			<section className="w-full flex flex-col justify-between items-center">
 				<div
 					className={`w-full h-screen excalidraw-wrapper flex justify-center theme--${theme}`}
-					onPointerMove={(event) => {
-						if (!boardId || !userId) return;
-						if (!socket.connected) return;
-
-						socket.emit('cursor:update', {
-							boardId,
-							cursor: {
-								userId,
-								username,
-								x: event.clientX,
-								y: event.clientY,
-							},
-						});
-					}}
+					onPointerMove={emitCursor}
 				>
 					{remoteCursors.map((cursor) => (
 						<Cursor
@@ -392,14 +393,14 @@ export default function Board() {
 						/>
 					))}
 
-					{selectedTeam ? (
-						<div className="absolute mx-auto bottom-4 z-10">
-							<MultipleUsersBubble
-								members={selectedTeam.members}
-								bg="var(--bg)"
-							/>
-						</div>
-					) : null}
+                    {roomUsers.length > 1 ?
+					<div className="absolute mx-auto bottom-3 z-10">
+						<MultipleUsersBubble
+							members={roomUsers}
+							bg="var(--bg)"
+                            />
+					</div>
+                    : null}
 
 					<Excalidraw
 						initialData={{
@@ -409,8 +410,7 @@ export default function Board() {
 								gridSize: 100,
 								gridModeEnabled: true,
 								gridStep: 1,
-								theme: theme,
-								// snapLines: true
+								theme,
 							},
 						}}
 						theme={state.theme}
@@ -419,24 +419,23 @@ export default function Board() {
 						excalidrawAPI={(api) => {
 							excalidrawApiRef.current = api;
 						}}
-						onChange={(elements, appState, files) => {
-							if (!canEdit) return;
-							if (isApplyingRemoteUpdateRef.current) return;
+						onChange={(elements, _appState, files) => {
+							if (!canEdit || isApplyingRemoteUpdateRef.current) return;
 
-							saveLatestScene(elements, appState, files);
+							const signature = getElementsSignature(elements);
+							if (signature === elementsSignatureRef.current) return;
+							elementsSignatureRef.current = signature;
+
+							latestSceneRef.current = {
+								elements: [...elements],
+								appState: {},
+								files: files ?? {},
+							};
 							scheduleBoardUpdate();
 						}}
-						// renderTopRightUI={() => null}
 						UIOptions={{
 							canvasActions: {
 								changeViewBackgroundColor: true,
-
-								//   clearCanvas: false,
-								//   export: false,
-								//   loadScene: false,
-								//   saveAsImage: false,
-								//   saveToActiveFile: false,
-								//   toggleTheme: null,
 							},
 						}}
 					/>

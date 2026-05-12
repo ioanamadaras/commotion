@@ -9,10 +9,74 @@ const permissionOf = (board: any, userId: string) => {
     return null;
 };
 
-const canAccessBoard = async (boardId: string, userId: string) => {
-    const board = await boardModel.findById(boardId);
-    return !!board && permissionOf(board, userId) !== null;
+const canEditPermission = (permission: string | null) =>
+    permission === "owner" || permission === "editor";
+
+const shouldUseIncomingElement = (current: any, incoming: any) => {
+    if (!current) return true;
+
+    const currentVersion = Number(current.version ?? 0);
+    const incomingVersion = Number(incoming.version ?? 0);
+
+    if (incomingVersion !== currentVersion) {
+        return incomingVersion > currentVersion;
+    }
+
+    const currentUpdated = Number(current.updated ?? 0);
+    const incomingUpdated = Number(incoming.updated ?? 0);
+
+    if (incomingUpdated !== currentUpdated) {
+        return incomingUpdated > currentUpdated;
+    }
+
+    return incoming.versionNonce !== current.versionNonce;
 };
+
+const mergeElements = (currentElements: unknown[] = [], incomingElements: unknown[] = []) => {
+    const byId = new Map<string, any>();
+    const order: string[] = [];
+
+    const remember = (element: any) => {
+        if (!element?.id) return;
+        if (!byId.has(element.id)) order.push(element.id);
+        byId.set(element.id, element);
+    };
+
+    currentElements.forEach(remember);
+
+    incomingElements.forEach((element: any) => {
+        if (!element?.id) return;
+
+        if (!byId.has(element.id)) {
+            order.push(element.id);
+            byId.set(element.id, element);
+            return;
+        }
+
+        if (shouldUseIncomingElement(byId.get(element.id), element)) {
+            byId.set(element.id, element);
+        }
+    });
+
+    return order.map((id) => byId.get(id)).filter(Boolean);
+};
+
+const mergeBoardData = (
+    currentData: any,
+    incomingData: Pick<BoardUpdatePayload, "elements" | "appState" | "files">,
+) => ({
+    type: "excalidraw",
+    version: 2,
+    elements: mergeElements(currentData?.elements ?? [], incomingData.elements ?? []),
+    appState: {
+        ...(currentData?.appState ?? {}),
+        ...(incomingData.appState ?? {}),
+    },
+    files: {
+        ...(currentData?.files ?? {}),
+        ...(incomingData.files ?? {}),
+    },
+});
 
 type BoardJoinPayload = {
     boardId: string;
@@ -22,17 +86,6 @@ type BoardJoinPayload = {
 
 type BoardUpdatePayload = {
     boardId: string;
-    elements: unknown[];
-    appState: Record<string, unknown>;
-    files?: Record<string, unknown>;
-};
-
-type BoardSyncRequestPayload = {
-    requesterSocketId: string;
-};
-
-type BoardSyncResponsePayload = {
-    requesterSocketId: string;
     elements: unknown[];
     appState: Record<string, unknown>;
     files?: Record<string, unknown>;
@@ -83,8 +136,6 @@ export function initSocket(server: HttpServer) {
         };
 
         io.on("connection", (socket) => {
-            console.log("Socket connected:", socket.id);
-
             socket.on(
                 "board:join",
                 async ({ boardId, userId, username }: BoardJoinPayload) => {
@@ -102,14 +153,7 @@ export function initSocket(server: HttpServer) {
                     socket.data.boardId = boardId;
                     socket.data.userId = userId;
                     socket.data.username = username || "User";
-
-                    console.log("board:join", {
-                        socketId: socket.id,
-                        boardId,
-                        userId,
-                        username,
-                        rooms: Array.from(socket.rooms),
-                    });
+                    socket.data.permission = permissionOf(board, userId);
 
                     await emitUsersChanged(boardId);
 
@@ -118,10 +162,6 @@ export function initSocket(server: HttpServer) {
                         userId,
                         username: socket.data.username,
                     });
-
-                    socket.to(roomId).emit("board:sync-request", {
-                        requesterSocketId: socket.id,
-                    } satisfies BoardSyncRequestPayload);
                 },
             );
 
@@ -134,59 +174,41 @@ export function initSocket(server: HttpServer) {
                     if (!boardId) return;
 
                     if (socket.data.boardId !== boardId) {
-                        console.log(
-                            "Rejected board:update because boardId mismatch",
-                            {
-                                socketId: socket.id,
-                                socketBoardId: socket.data.boardId,
-                                payloadBoardId: boardId,
-                            },
-                        );
                         return;
                     }
 
-                    if (!(await canAccessBoard(boardId, socket.data.userId))) {
+                    const board = await boardModel.findById(boardId);
+                    const permission = board
+                        ? permissionOf(board, socket.data.userId)
+                        : null;
+
+                    if (!board || !canEditPermission(permission)) {
                         return;
                     }
 
-                    console.log("board:update", {
-                        from: socket.id,
-                        boardId,
-                        lastEl: elements?.[elements.length - 1],
-                    });
-
-                    socket.broadcast
-                        .to(getRoomId(boardId))
-                        .emit("board:update", {
-                            sourceSocketId: socket.id,
-                            elements,
-                            appState,
-                            files,
-                        });
-                },
-            );
-
-            socket.on(
-                "board:sync-response",
-                ({
-                    requesterSocketId,
-                    elements,
-                    appState,
-                    files,
-                }: BoardSyncResponsePayload) => {
-                    if (!requesterSocketId) return;
-
-                    console.log("board:sync-response", {
-                        from: socket.id,
-                        to: requesterSocketId,
-                        elementsCount: elements?.length ?? 0,
-                    });
-
-                    io.to(requesterSocketId).emit("board:sync-response", {
-                        sourceSocketId: socket.id,
+                    const boardData = mergeBoardData(board.boardData, {
                         elements,
                         appState,
                         files,
+                    });
+
+                    board.boardData = boardData;
+                    await board.save();
+
+                    const updatePayload = {
+                        sourceSocketId: socket.id,
+                        elements: boardData.elements,
+                        appState: boardData.appState,
+                        files: boardData.files,
+                    };
+
+                    socket.broadcast
+                        .to(getRoomId(boardId))
+                        .emit("board:update", updatePayload);
+
+                    socket.emit("board:update", {
+                        ...updatePayload,
+                        sourceSocketId: "server",
                     });
                 },
             );
@@ -200,7 +222,7 @@ export function initSocket(server: HttpServer) {
                         return;
                     }
 
-                    if (!(await canAccessBoard(boardId, socket.data.userId))) {
+                    if (!socket.data.userId) {
                         return;
                     }
 
@@ -231,8 +253,6 @@ export function initSocket(server: HttpServer) {
 
             socket.on("disconnect", async () => {
                 const boardId = socket.data.boardId;
-
-                console.log("Socket disconnected:", socket.id);
 
                 if (!boardId) return;
 

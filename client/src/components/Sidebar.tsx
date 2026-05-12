@@ -5,15 +5,15 @@ import { Link } from "react-router-dom";
 import { getUserColor, getUserInitials } from "@/utils/user";
 import { formatDateLocale } from "@/utils/time";
 import { api } from "../api";
-import type { AnchorRect, ModalPlacement, ModalState, StateType } from "@/types";
+import type { AnchorRect, BoardType, ModalPlacement, ModalState, StateType } from "@/types";
 
 export default function Sidebar() {
 	const { state, setState, openModal } = _useContext();
-	const { teams, isSidebarOpen, activeModal, user } = state;
+	const { isSidebarOpen, activeModal, user } = state;
 
 	const [searchQuery, setSearchQuery] = useState("");
-	const [boardFilter, setBoardFilter] = useState<"all" | "mine" | "shared">("all");
-	const [boards, setBoards] = useState<any[]>([]);
+	const [boardFilter, setBoardFilter] = useState<"all" | "owned" | "shared">("all");
+	const [boards, setBoards] = useState<BoardType[]>([]);
 
 	if (!user) return null;
 
@@ -79,9 +79,9 @@ export default function Sidebar() {
 		const matchesFilter =
 			boardFilter === "all"
 				? true
-				: boardFilter === "mine"
+				: boardFilter === "owned"
 					? board.owner === user._id
-					: !board.isPersonal;
+					: board.owner !== user._id;
 
 		const matchesSearch =
 			normalizedQuery.length === 0
@@ -165,7 +165,7 @@ export default function Sidebar() {
 				{shouldShowSidebar ? (
 					<>
 						<div className="flex flex-wrap gap-1">
-							{(["all", "mine", "shared"] as const).map((filter) => (
+							{(["all", "owned", "shared"] as const).map((filter) => (
 								<button
 									key={filter}
 									type="button"
@@ -202,30 +202,17 @@ export default function Sidebar() {
 
 											<div className="flex items-center gap-2">
 												<span
-													className="shrink-0 rounded-full"
-													aria-label={!board.isPersonal ? "Shared board" : "Personal board"}
-													title={!board.isPersonal ? "Shared board" : "Personal board"}
+													className="shrink-0 rounded-full border border-[var(--text)]/15 px-2 py-1 text-[0.65rem] uppercase opacity-70"
+													aria-label={`Your role is ${board.permissionLevel ?? 'viewer'}`}
+													title={`Your role is ${board.permissionLevel ?? 'viewer'}`}
 												>
-													{!board.isPersonal ? (
-														<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-4 h-4">
-															<path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9 9 0 100-18 9 9 0 000 18z" />
-															<path strokeLinecap="round" strokeLinejoin="round" d="M3.6 9h16.8" />
-															<path strokeLinecap="round" strokeLinejoin="round" d="M3.6 15h16.8" />
-															<path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.5 2.7 4 5.7 4 9s-1.5 6.3-4 9c-2.5-2.7-4-5.7-4-9s1.5-6.3 4-9z" />
-														</svg>
-													) : (
-														<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-4 h-4">
-															<path strokeLinecap="round" strokeLinejoin="round" d="M16 11V8a4 4 0 10-8 0v3" />
-															<path strokeLinecap="round" strokeLinejoin="round" d="M7 11h10v9H7z" />
-															<path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2" />
-														</svg>
-													)}
+													{board.permissionLevel ?? 'viewer'}
 												</span>
 
 												{board.permissionLevel !== 'viewer' ? (
 													<button
 														type="button"
-														className="rounded-md border border-[var(--text)]/20 px-2 py-1 text-xs opacity-70 hover:opacity-100"
+														className="rounded-md border hover:bg-(--text) hover:text-(--bg) border-[var(--text)]/20 px-2 py-1 text-xs opacity-70 hover:opacity-100"
 														onClick={() => openModal({ type: "board", boardId: board._id })}
 													>
 														Edit

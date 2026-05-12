@@ -3,13 +3,11 @@ import { _useContext } from '@/Context';
 import type { BoardType, UserType } from '@/types';
 import { useEffect, useMemo, useState } from 'react';
 import ModalShell from './ModalShell';
-import Toggle from '../Toggle';
 
 type UserRole = 'editor' | 'viewer';
 
 const emptyBoard = {
 	title: 'Untitled board',
-	isPersonal: true,
 	editorUsersIds: [] as string[],
 	viewerUserIds: [] as string[],
 };
@@ -18,7 +16,6 @@ export default function BoardModal({ boardId }: { boardId: string }) {
 	const { closeModal, openModal } = _useContext();
 	const [board, setBoard] = useState<BoardType | null>(null);
 	const [title, setTitle] = useState(emptyBoard.title);
-	const [isPersonal, setIsPersonal] = useState(emptyBoard.isPersonal);
 	const [editorUsersIds, setEditorUsersIds] = useState<string[]>([]);
 	const [viewerUserIds, setViewerUserIds] = useState<string[]>([]);
 	const [query, setQuery] = useState('');
@@ -28,6 +25,7 @@ export default function BoardModal({ boardId }: { boardId: string }) {
 	const [saving, setSaving] = useState(false);
 	const canEditBoard = board?.permissionLevel !== 'viewer';
 	const canManagePermissions = board?.permissionLevel === 'owner';
+	const joinCode = board?.joinKey ?? '';
 
 	useEffect(() => {
 		let cancelled = false;
@@ -41,14 +39,14 @@ export default function BoardModal({ boardId }: { boardId: string }) {
 
 				setBoard(data);
 				setTitle(data.title ?? emptyBoard.title);
-				setIsPersonal(!!data.isPersonal);
 				setEditorUsersIds(data.editorUsersIds ?? []);
 				setViewerUserIds(data.viewerUserIds ?? []);
 
 				const userIds = [
+					data.owner,
 					...(data.editorUsersIds ?? []),
 					...(data.viewerUserIds ?? []),
-				];
+				].filter(Boolean);
 
 				if (userIds.length > 0) {
 					const users = await api(`/user/lookup?ids=${encodeURIComponent(userIds.join(','))}`);
@@ -112,6 +110,8 @@ export default function BoardModal({ boardId }: { boardId: string }) {
 		[viewerUserIds, knownUsers],
 	);
 
+	const owner = board?.owner ? knownUsers[board.owner] : null;
+
 	function rememberUsers(users: UserType[]) {
 		setKnownUsers((prev) => {
 			const next = { ...prev };
@@ -120,37 +120,30 @@ export default function BoardModal({ boardId }: { boardId: string }) {
 		});
 	}
 
-	async function saveMeta(nextTitle = title, nextPersonal = isPersonal) {
+	async function saveChanges() {
 		setSaving(true);
 		try {
-			await api(`/board/${boardId}`, {
-				method: 'PUT',
-				body: JSON.stringify({
-					title: nextTitle,
-					isPersonal: nextPersonal,
-				}),
-			});
-			window.dispatchEvent(new Event('boards:refresh'));
-		}
-		catch (err) {
-			console.error(err);
-		}
-		finally {
-			setSaving(false);
-		}
-	}
+			if (canEditBoard) {
+				await api(`/board/${boardId}`, {
+					method: 'PUT',
+					body: JSON.stringify({
+						title,
+					}),
+				});
+			}
 
-	async function savePermissions(nextEditors: string[], nextViewers: string[]) {
-		setSaving(true);
-		try {
-			await api(`/board/${boardId}/permissions`, {
-				method: 'PATCH',
-				body: JSON.stringify({
-					editorUsersIds: nextEditors,
-					viewerUserIds: nextViewers,
-				}),
-			});
+			if (canManagePermissions) {
+				await api(`/board/${boardId}/permissions`, {
+					method: 'PATCH',
+					body: JSON.stringify({
+						editorUsersIds,
+						viewerUserIds,
+					}),
+				});
+			}
+
 			window.dispatchEvent(new Event('boards:refresh'));
+			closeModal();
 		}
 		catch (err) {
 			console.error(err);
@@ -175,7 +168,8 @@ export default function BoardModal({ boardId }: { boardId: string }) {
 
 		setEditorUsersIds(nextEditors);
 		setViewerUserIds(nextViewers);
-		void savePermissions(nextEditors, nextViewers);
+		setQuery('');
+		setResults([]);
 	}
 
 	function removeUser(userId: string) {
@@ -184,7 +178,6 @@ export default function BoardModal({ boardId }: { boardId: string }) {
 
 		setEditorUsersIds(nextEditors);
 		setViewerUserIds(nextViewers);
-		void savePermissions(nextEditors, nextViewers);
 	}
 
 	if (loading || !board) {
@@ -198,42 +191,38 @@ export default function BoardModal({ boardId }: { boardId: string }) {
 	return (
 		<ModalShell title="Board settings" onClose={closeModal} className="max-w-3xl">
 			<div className="flex flex-col gap-5">
-				<div className="flex flex-col gap-2">
-					<label className="text-sm font-medium">Name</label>
-					<input
-						value={title}
-						onChange={(event) => setTitle(event.target.value)}
-						disabled={!canEditBoard}
-						className="rounded-md border border-[var(--text)]/20 bg-transparent px-3 py-2 outline-none"
-						placeholder="Board name"
-					/>
+				
+				<div className="flex w-full">
+					<p className="text-sm opacity-70 pr-3">Owner:</p>
+					<p>{owner?.username ?? 'Board owner'}</p>
+					{owner?.email ? <p>&nbsp;&nbsp;/&nbsp;&nbsp;{owner.email}</p> : null}
 				</div>
-
-				<div className="flex items-center justify-between gap-4 rounded-lg border border-[var(--text)]/10 px-4 py-3">
-					<div>
-						<p className="font-medium">Personal board</p>
-						<p className="text-sm opacity-70">Turn this off to make it shared.</p>
+                
+                <div className="grid gap-4 md:grid-cols-[1fr_12rem]">
+					<div className="flex flex-col gap-2">
+						<label className="text-sm font-medium">Name</label>
+						<input
+							value={title}
+							onChange={(event) => setTitle(event.target.value)}
+							disabled={!canEditBoard}
+							className="rounded-md border border-[var(--text)]/20 bg-transparent h-[3rem] px-3 outline-none"
+							placeholder="Board name"
+						/>
 					</div>
-					<Toggle
-						checked={isPersonal}
-						handleClick={() => {
-							if (canEditBoard) {
-								setIsPersonal((prev) => !prev);
-							}
-						}}
-					/>
+
+					<div className="flex flex-col gap-2">
+						<label className="text-sm font-medium">Join code</label>
+						<div className="group relative flex items-center justify-center rounded-md border border-[var(--text)]/20 bg-[var(--bg-darker)] px-3 h-[3rem] text-center font-mono text-lg tracking-[0.3em]">
+							<span className='opacity-0 group-hover:opacity-100'>
+                                {joinCode || '------'}
+                            </span>
+                            <span className='absolute group-hover:opacity-0 select-none'>
+                                {'------'}
+                            </span>
+						</div>
+					</div>
 				</div>
 
-				{canEditBoard ? (
-					<button
-						type="button"
-						disabled={saving}
-						onClick={() => void saveMeta(title, isPersonal)}
-						className="rounded-md bg-(--text) px-4 py-2 text-(--bg) disabled:opacity-60"
-					>
-						Save name and sharing
-					</button>
-				) : null}
 
 				{board.permissionLevel === 'viewer' ? (
 					<p className="text-sm opacity-70">
@@ -247,7 +236,7 @@ export default function BoardModal({ boardId }: { boardId: string }) {
 
 						<div className="flex flex-col gap-3">
 							<div className="flex flex-col gap-2">
-								<label className="text-sm font-medium">Add people by username</label>
+								<label className="text-sm font-medium">Add users by username</label>
 								<input
 									value={query}
 									onChange={(event) => setQuery(event.target.value)}
@@ -339,36 +328,26 @@ export default function BoardModal({ boardId }: { boardId: string }) {
 					</>
 				) : null}
 
-				<div className="flex justify-between gap-2">
-					<button
-						type="button"
-						className="rounded-md border border-red-500 px-4 py-2 text-red-500"
-						onClick={() => closeModal()}
-					>
-						Close
-					</button>
-					{canEditBoard ? (
+				<div className="flex items-center justify-between gap-3 border-t border-[var(--text)]/10 pt-4">
+					{canManagePermissions ? (
 						<button
 							type="button"
-							className="rounded-md bg-red-600 px-4 py-2 text-white"
-							onClick={() => {
-								void saveMeta(title, isPersonal);
-							}}
+							className="rounded-md border border-red-500 px-4 py-2 text-red-500 transition hover:bg-red-500 hover:text-white"
+							onClick={() => openModal({ type: 'confirm-delete-board', boardId })}
 						>
-							Save changes
+							Delete board
 						</button>
-					) : null}
-				</div>
+					) : <span />}
 
-				{canManagePermissions ? (
 					<button
 						type="button"
-						className="rounded-md border border-red-500 px-4 py-2 text-red-500"
-						onClick={() => openModal({ type: 'confirm-delete-board', boardId })}
+						disabled={saving || !canEditBoard}
+						className="rounded-md bg-(--text) px-5 py-2 text-(--bg) transition hover:bg-(--gray) disabled:opacity-60"
+						onClick={() => void saveChanges()}
 					>
-						Delete board
+						Save
 					</button>
-				) : null}
+				</div>
 			</div>
 		</ModalShell>
 	);

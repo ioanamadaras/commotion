@@ -41,14 +41,6 @@ export type StateType = {
 	 * The currently logged in user
 	 */
 	user: UserType | null;
-	/**
-	 * The teams the user is a part of
-	 */
-	teams: TeamType[];
-
-    selectedTeamBoards: BoardType[];
-    personalBoards: BoardType[];
-    selectedTeamId: string | null;
     activeModal: ModalState;
     toasts: ToastItem[];
 };
@@ -84,26 +76,22 @@ export type UserType = {
 	_id: string;
 	username: string;
 	email: string;
-	lastPulseTimeStamp?: Date;
-	selectedTeamId?: string;
 };
 
-export type TeamType = {
-	_id: string;
-	name: string;
-    owner: string;
-	members: UserType[];
+export type BoardRoomUser = {
+	socketId: string;
+	userId: string;
+	username: string;
 };
 
 export type BoardType = {
     _id: string;
     title: string;
     owner: string;
-    isPersonal: boolean;
+    joinKey?: string;
     permissionLevel?: 'owner' | 'editor' | 'viewer';
     editorUsersIds?: string[];
     viewerUserIds?: string[];
-    teamId: string | null;
     boardData: {
         type: string;
         version: number;

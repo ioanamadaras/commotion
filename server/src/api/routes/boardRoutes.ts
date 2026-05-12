@@ -18,10 +18,30 @@ const withPermission = (board: any, userId: string) => ({
     permissionLevel: permissionOf(board, userId)
 });
 
+const createJoinKey = () => Math.random().toString(36).substring(2, 8);
+
+const createUniqueJoinKey = async () => {
+    let joinKey = createJoinKey();
+
+    while (await boardModel.exists({ joinKey })) {
+        joinKey = createJoinKey();
+    }
+
+    return joinKey;
+};
+
+const ensureJoinKey = async (board: any) => {
+    if (board.joinKey) return board;
+
+    board.joinKey = await createUniqueJoinKey();
+    await board.save();
+    return board;
+};
+
 const loadBoard = async (boardId: string, res: Response) => {
     const board = await boardModel.findById(boardId);
     if (!board) res.status(404).json({ error: 'Board not found' });
-    return board as any;
+    return board ? ensureJoinKey(board as any) : board as any;
 };
 
 const load = loadBoard;
@@ -34,13 +54,12 @@ router.post('/create', async (req, res) => {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
-        const { title, boardData, isPersonal = true } = req.body;
-        const key = String(Math.floor(100000 + Math.random() * 900000));
+        const { title, boardData } = req.body;
+        const key = await createUniqueJoinKey();
 
         const board = new boardModel({
             title: title ?? 'Untitled board',
             owner: user._id,
-            isPersonal,
             editorUsersIds: [],
             viewerUserIds: [],
             joinKey: key,
@@ -129,7 +148,7 @@ router.get('/:boardId', async (req, res) => {
     }
 });
 
-// Updates title, board data, or personal/team flag if the user can edit.
+// Updates title, board data if the user can edit.
 router.put('/:boardId', async (req, res) => {
     try {
         const user = await getAuthenticatedUser(req);
@@ -146,11 +165,10 @@ router.put('/:boardId', async (req, res) => {
             return res.status(403).json({ error: 'Forbidden' });
         }
 
-        const { title, boardData, isPersonal } = req.body;
+        const { title, boardData } = req.body;
 
         if (typeof title === 'string') board.title = title;
         if (boardData) board.boardData = boardData;
-        if (typeof isPersonal === 'boolean') board.isPersonal = isPersonal;
 
         await board.save();
 
