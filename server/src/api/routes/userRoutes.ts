@@ -1,98 +1,127 @@
-import express, { Response, Request } from 'express';
-import jwt, { JwtPayload } from 'jsonwebtoken';
-import userModel from '../models/userModel';
+import express, { Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
+import userModel from '../models/userModel';
 import { getAuthenticatedUser } from '../utils/auth';
 
 const router = express.Router();
 
-// Register a new user
+const serializeUser = (user: any) => {
+    const { password, ...safeUser } = user.toObject();
+
+    return {
+        ...safeUser,
+        selectedTeamId: user.selectedTeamId ? String(user.selectedTeamId) : null,
+    };
+};
+
+// Registers a new user and returns a JWT plus the user profile.
 router.post('/register', async (req: Request, res: Response) => {
     try {
         const { username, email, password } = req.body;
-        
-        // Check if the email is already in use
-        let user = await userModel.findOne({ email });
-        if (user) return res.status(400).json({ error:'Email already in use' });
 
-        user = await userModel.findOne({ username });
-        if (user) return res.status(400).json({ error:'Username already in use' });
+        if (await userModel.findOne({ email })) {
+            return res.status(400).json({ error: 'Email already in use' });
+        }
 
-        // Create the new user
+        if (await userModel.findOne({ username })) {
+            return res.status(400).json({ error: 'Username already in use' });
+        }
+
         const newUser = new userModel({
-            username, 
+            username,
             email,
-            password: await bcrypt.hash(password, 10), // Hash the password before saving it to the database to increase security
+            password: await bcrypt.hash(password, 10),
         });
 
-        // Save the new user to the database
         await newUser.save();
 
-        const payload = { userId: newUser._id };
-        const token = jwt.sign(payload, process.env.JWT_SECRET ?? "", { expiresIn: '30d' }); // Sign the JWT for 30 days
-        
-        // SUCCESS
-        res.status(200).json({
-            token, 
-            email: newUser.email, 
-            username: newUser.username, 
-            _id: newUser._id
-        });  
+        const token = jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET ?? '', { expiresIn: '30d' });
+        return res.status(201).json({ token, ...serializeUser(newUser) });
     }
-    catch(err){
+    catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Server error' });
+        return res.status(500).json({ error: 'Server error' });
     }
 });
 
-// Log in a user
+// Logs in a user and returns a JWT plus the user profile.
 router.put('/login', async (req: Request, res: Response) => {
     try {
         const { email, password } = req.body;
 
-        // Check if the email exists in the database
-        const user = await userModel.findOne({email});  
-        if (!user) return res.status(401).json({ error: 'Email not found' }) 
+        const user = await userModel.findOne({ email });
+        if (!user) return res.status(401).json({ error: 'Email not found' });
 
-        // Compare the password with the hashed password in the database
-        const isMatching = await bcrypt.compare(password, user.password); 
-        if (!isMatching)  return res.status(401).json({ error: 'Invalid password' }) 
+        const isMatching = await bcrypt.compare(password, user.password);
+        if (!isMatching) return res.status(401).json({ error: 'Invalid password' });
 
-        // Generate a JWT with the user's ID
-        const payload: JwtPayload = { userId: user._id }; 
-        const token = jwt.sign(payload, process.env.JWT_SECRET ?? "", { expiresIn: '30d' }); // creez tokenul pentru 30 de zile
-
-        // SUCCESS
-        res.status(200).json({
-            token, 
-            email: user.email, 
-            username: user.username, 
-            selectedTeamId: user.selectedTeamId,
-            _id: user._id
-        });
+        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET ?? '', { expiresIn: '30d' });
+        return res.status(200).json({ token, ...serializeUser(user) });
     }
-    catch(err){
+    catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Server error' });
+        return res.status(500).json({ error: 'Server error' });
     }
 });
 
-// Get the authenticated user's information
-router.get('/me', async (req: Request, res: Response) => { 
+// Returns the currently authenticated user.
+router.get('/me', async (req: Request, res: Response) => {
     try {
         const authenticatedUser = await getAuthenticatedUser(req);
         if (!authenticatedUser) return res.status(401).json({ error: 'Unauthorized' });
 
-        const user = authenticatedUser.toObject();
-
-        res.status(200).json({
-            ...user,
-            selectedTeam: user.selectedTeamId ? String(user.selectedTeamId) : undefined,
-        });
-    } 
+        return res.status(200).json(serializeUser(authenticatedUser));
+    }
     catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Server error' });
+        return res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Returns users that match a username search query.
+router.get('/search', async (req: Request, res: Response) => {
+    try {
+        const authenticatedUser = await getAuthenticatedUser(req);
+        if (!authenticatedUser) return res.status(401).json({ error: 'Unauthorized' });
+
+        const query = String(req.query.query ?? '').trim();
+        if (!query) return res.status(200).json([]);
+
+        const users = await userModel
+            .find({
+                _id: { $ne: authenticatedUser._id },
+                username: { $regex: query, $options: 'i' },
+            })
+            .limit(10);
+
+        return res.status(200).json(users.map(serializeUser));
+    }
+    catch (err) {
+        console.error(err);
+        return res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Returns users for a comma-separated list of ids.
+router.get('/lookup', async (req: Request, res: Response) => {
+    try {
+        const authenticatedUser = await getAuthenticatedUser(req);
+        if (!authenticatedUser) return res.status(401).json({ error: 'Unauthorized' });
+
+        const ids = String(req.query.ids ?? '')
+            .split(',')
+            .map((id) => id.trim())
+            .filter(Boolean);
+
+        if (ids.length === 0) return res.status(200).json([]);
+
+        const users = await userModel.find({ _id: { $in: ids } });
+        return res.status(200).json(users.map(serializeUser));
+    }
+    catch (err) {
+        console.error(err);
+        return res.status(500).json({ error: 'Server error' });
     }
 });
 

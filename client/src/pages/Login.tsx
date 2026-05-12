@@ -26,17 +26,19 @@ export default function Login() {
 				}),
 			});
 
+            const { token, ...user } = data;
+
             // updatam obiectul react din context
             setState(prev => ({
                 ...prev, 
                 user: {
-                    ...data,
-                    selectedTeam: data.selectedTeam ?? data.selectedTeamId ?? undefined,
+                    ...user,
+                    selectedTeam: user.selectedTeamId ?? undefined,
                 }
             }));
 
             // salvam doar tokenul in localStorage
-            localStorage.setItem("token", data.token);
+            localStorage.setItem("token", token);
 
             navigate("/");
         } catch (err: any) {

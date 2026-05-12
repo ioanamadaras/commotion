@@ -3,19 +3,34 @@ export type ContextType = {
 	 * App's global state object
 	 */
 	state: StateType;
-	/**
-	 * Sets the app's global state object via dispatch
-	 */
-	setState: React.Dispatch<React.SetStateAction<StateType>>;
+    /**
+     * Sets the app's global state object via dispatch
+     */
+    setState: React.Dispatch<React.SetStateAction<StateType>>;
+    /**
+     * Opens a modal by type
+     */
+    openModal: (modal: Exclude<ModalState, null>) => void;
+    /**
+     * Closes any active modal
+     */
+    closeModal: () => void;
     /**
      * Changes the theme color
      */
     toggleTheme: () => void;
+    /**
+     * Adds a toast notification to the global queue
+     */
+    addToast: (toast: Omit<ToastItem, 'id'>) => void;
+    /**
+     * Removes a toast notification from the global queue
+     */
+    removeToast: (toastId: string) => void;
 };
 
 export type StateType = {
     isSidebarOpen: boolean;
-    isModalOpen: boolean;
 	/**
 	 * The current font size of the app
 	 * @remarks Use "rem" over "px" for everything except border-widths, shadows, specific margins/paddings to keep stuff responsive
@@ -33,7 +48,37 @@ export type StateType = {
 
     selectedTeamBoards: BoardType[];
     personalBoards: BoardType[];
+    selectedTeamId: string | null;
+    activeModal: ModalState;
+    toasts: ToastItem[];
 };
+
+export type AnchorRect = {
+	top: number;
+	left: number;
+	right: number;
+	bottom: number;
+	width: number;
+	height: number;
+};
+
+export type ModalPlacement = 'top' | 'bottom';
+
+export type ToastLevel = 'error' | 'warning' | 'info' | 'success';
+
+export type ToastItem = {
+	id: string;
+	level: ToastLevel;
+	message: string;
+};
+
+export type ModalState =
+    | { type: 'settings'; anchorRect: AnchorRect; placement: ModalPlacement }
+    | { type: 'board'; boardId: string }
+    | { type: 'confirm-delete-board'; boardId: string }
+    | { type: 'create-board'; anchorRect: AnchorRect; placement: ModalPlacement }
+    | { type: 'join-board'; anchorRect: AnchorRect; placement: ModalPlacement }
+    | null;
 
 export type UserType = {
 	_id: string;
@@ -55,6 +100,9 @@ export type BoardType = {
     title: string;
     owner: string;
     isPersonal: boolean;
+    permissionLevel?: 'owner' | 'editor' | 'viewer';
+    editorUsersIds?: string[];
+    viewerUserIds?: string[];
     teamId: string | null;
     boardData: {
         type: string;

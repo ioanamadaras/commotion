@@ -38,7 +38,7 @@ export default function Cursor({
                     left: "1.5rem",
                     top: "-0.4rem",
                     background: userColor,
-                    color: 'var(--text)',
+                    color: 'white',
                     padding: '2px 10px',
                     borderRadius: "99px",
                     fontSize: '1rem',

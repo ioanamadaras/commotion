@@ -4,7 +4,11 @@ export interface IBoard {
     title: string;
     owner: Types.ObjectId;
     isPersonal: boolean;
-    teamId: Types.ObjectId | null;
+
+    editorUsersIds: string[];
+    viewerUserIds: string[];
+    joinKey: string;
+
     boardData: {
         type: string;
         version: number;
@@ -15,25 +19,32 @@ export interface IBoard {
 }
 
 const boardSchema = new mongoose.Schema<IBoard>({
+    owner: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
     title: {
         type: String,
         required: true,
         default: 'Untitled board',
         trim: true
     },
-    owner: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true
-    },
     isPersonal: {
         type: Boolean,
         default: true
     },
-    teamId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Team',
-        default: null
+    joinKey: {
+        type: String,
+        required: false
+    },
+    editorUsersIds: {
+        type: [String],
+        default: []
+    },
+    viewerUserIds: {
+        type: [String],
+        default: []
     },
     // salvez exact cum e in Excalidraw, pentru a putea incarca direct in frontend
     boardData: {

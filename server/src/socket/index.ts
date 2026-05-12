@@ -1,5 +1,18 @@
 import { Server } from "socket.io";
 import type { Server as HttpServer } from "http";
+import boardModel from "../api/models/boardModel";
+
+const permissionOf = (board: any, userId: string) => {
+    if (String(board.owner) === userId) return "owner";
+    if (board.editorUsersIds?.includes(userId)) return "editor";
+    if (board.viewerUserIds?.includes(userId)) return "viewer";
+    return null;
+};
+
+const canAccessBoard = async (boardId: string, userId: string) => {
+    const board = await boardModel.findById(boardId);
+    return !!board && permissionOf(board, userId) !== null;
+};
 
 type BoardJoinPayload = {
     boardId: string;
@@ -77,6 +90,11 @@ export function initSocket(server: HttpServer) {
                 async ({ boardId, userId, username }: BoardJoinPayload) => {
                     if (!boardId || !userId) return;
 
+                    const board = await boardModel.findById(boardId);
+                    if (!board || !permissionOf(board, userId)) {
+                        return;
+                    }
+
                     const roomId = getRoomId(boardId);
 
                     await socket.join(roomId);
@@ -107,7 +125,7 @@ export function initSocket(server: HttpServer) {
                 },
             );
 
-            socket.on("board:update", ({
+            socket.on("board:update", async ({
                 boardId,
                 elements,
                 appState,
@@ -124,6 +142,10 @@ export function initSocket(server: HttpServer) {
                                 payloadBoardId: boardId,
                             },
                         );
+                        return;
+                    }
+
+                    if (!(await canAccessBoard(boardId, socket.data.userId))) {
                         return;
                     }
 
@@ -171,10 +193,14 @@ export function initSocket(server: HttpServer) {
 
             socket.on(
                 "cursor:update",
-                ({ boardId, cursor }: CursorUpdatePayload) => {
+                async ({ boardId, cursor }: CursorUpdatePayload) => {
                     if (!boardId) return;
 
                     if (socket.data.boardId !== boardId) {
+                        return;
+                    }
+
+                    if (!(await canAccessBoard(boardId, socket.data.userId))) {
                         return;
                     }
 

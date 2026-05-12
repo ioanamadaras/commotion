@@ -1,11 +1,12 @@
 import { Route, Routes, Navigate } from "react-router-dom";
-import SettingsModal from "./components/SettingsModal";
 import Board from "./pages/Board";
 import Home from "./pages/Home";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
 import { _useContext } from "./Context";
 import Sidebar from "./components/Sidebar";
+import ModalHost from "./components/modals/ModalHost";
+import ToastHost from "./components/ToastHost";
 import { useEffect, useState } from "react";
 import { api } from "./api";
 
@@ -15,6 +16,11 @@ function App() {
 	const isLoggedIn = !!state.user?.username;
 
 	useEffect(() => {
+        const theme = localStorage.getItem("theme");
+        if (theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+        }
+
 		const token = localStorage.getItem("token");
 		
         if (!token) { // daca nu exista token
@@ -39,7 +45,7 @@ function App() {
 		}
 
 		fetchUser();
-	}, [setState]);
+	}, []);
 
 	if (!authReady) {
 		return <div className="w-screen min-h-screen bg-[var(--bg)]"/>;
@@ -63,7 +69,8 @@ function App() {
 				/>
 			</Routes>
 
-			{isLoggedIn && state.isModalOpen && <SettingsModal />}
+			{isLoggedIn ? <ModalHost /> : null}
+			<ToastHost />
 		</div>
 	);
 }

@@ -8,7 +8,6 @@ require("dotenv").config();
 
 import userRoute from "./api/routes/userRoutes";
 import boardRoute from "./api/routes/boardRoutes";
-import teamRoute from "./api/routes/teamRoutes";
 import { initSocket } from "./socket/index";
 
 const app = express();
@@ -23,7 +22,6 @@ app.use(express.json());
 app.get("/", (req, res) => res.send("Welcome to Commotion API"));
 app.use("/user", userRoute);
 app.use("/board", boardRoute);
-app.use("/team", teamRoute);
 
 const server = http.createServer(app);
 
