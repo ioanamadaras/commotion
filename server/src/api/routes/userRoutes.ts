@@ -88,7 +88,7 @@ router.get('/search', async (req: Request, res: Response) => {
         const users = await userModel
             .find({
                 _id: { $ne: authenticatedUser._id },
-                username: { $regex: query, $options: 'i' },
+                username: { $regex: query, $options: 'i' }, // i inseamna case sensitive
             })
             .limit(10);
 
@@ -100,7 +100,7 @@ router.get('/search', async (req: Request, res: Response) => {
     }
 });
 
-// Returns users for a comma-separated list of ids.
+//ia o lista de id-uri si intoarce userii corespunzatori
 router.get('/lookup', async (req: Request, res: Response) => {
     try {
         const authenticatedUser = await getAuthenticatedUser(req);
@@ -123,3 +123,6 @@ router.get('/lookup', async (req: Request, res: Response) => {
 });
 
 export default router;
+
+
+//la fiecare request, frontend-ul trimite tokenul în authorization

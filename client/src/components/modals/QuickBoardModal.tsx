@@ -46,8 +46,8 @@ export default function QuickBoardModal({
 				return;
 			}
 
-			const code = value.trim();
-			if (!/^\d{6}$/.test(code)) {
+			const code = value.trim().toLowerCase();
+			if (!/^[a-z0-9]{6}$/.test(code)) {
 				return;
 			}
 
@@ -81,23 +81,24 @@ export default function QuickBoardModal({
 			<div className="flex flex-col gap-3">
 				<div className="flex flex-col gap-1">
 					<label className="text-xs font-medium opacity-70">
-						{isCreate ? 'Board name' : '6-digit code'}
+						{isCreate ? 'Board name' : '6-character code'}
 					</label>
 					<input
 						autoFocus
 						value={value}
 						onChange={(event) => {
 							const nextValue = event.target.value;
-							setValue(isCreate ? nextValue : nextValue.replace(/\D/g, '').slice(0, 6));
+							setValue(isCreate ? nextValue : nextValue.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 6));
 						}}
 						onKeyDown={(event) => {
 							if (event.key === 'Enter') {
 								void handleSubmit();
 							}
 						}}
-						inputMode={isCreate ? 'text' : 'numeric'}
+						type="text"
+						inputMode={isCreate ? 'text' : 'text'}
 						maxLength={isCreate ? 60 : 6}
-						placeholder={isCreate ? 'Untitled board' : '123456'}
+						placeholder={isCreate ? 'Untitled board' : 'a1b2c3'}
 						className="rounded-md border border-[var(--text)]/20 bg-transparent px-3 py-2 text-sm outline-none"
 					/>
 				</div>

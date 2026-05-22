@@ -110,7 +110,10 @@ export function initSocket(server: HttpServer) {
         const io = new Server(server, {
             transports: ["websocket", "polling"],
             cors: {
-                origin: "http://localhost:5001",
+                origin: [
+                    "http://localhost:5001",
+                    "http://192.168.100.88:5001",
+                ],
                 credentials: true,
             },
             allowEIO3: true,

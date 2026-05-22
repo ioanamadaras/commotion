@@ -28,7 +28,7 @@ export default function ConfirmDeleteBoardModal({
 
 	return (
 		<ModalShell title="Delete board" onClose={closeModal} className="max-w-sm">
-			<div className="flex flex-col gap-4">
+			<div className="flex flex-col gap-4 p-4">
 				<p className="text-sm opacity-80">
 					Are you sure? This will permanently delete the board and everyone will lose access.
 				</p>

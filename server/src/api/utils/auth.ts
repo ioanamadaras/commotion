@@ -16,9 +16,10 @@ export async function getAuthenticatedUser(req: Request): Promise<UserDocument |
         const decodedToken = jwt.verify(token, process.env.JWT_SECRET ?? '');
         if (typeof decodedToken === 'string') return null;
 
-        const payload = decodedToken as TokenPayload;
-        if (!payload.userId) return null;
-
+        const payload = decodedToken as TokenPayload; 
+        if (!payload.userId) return null; 
+        
+        //luam userul din token
         const user = await userModel.findById(payload.userId).select('-password');
         if (!user) return null;
 

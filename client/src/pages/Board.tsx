@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { _useContext } from '../Context';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Excalidraw } from '@excalidraw/excalidraw';
+import {
+	Excalidraw,
+	sceneCoordsToViewportCoords,
+	viewportCoordsToSceneCoords,
+} from '@excalidraw/excalidraw';
 import { socket } from '@/lib/socket';
 import { api } from '@/api';
 import '@excalidraw/excalidraw/index.css';
@@ -17,6 +21,8 @@ type CursorState = {
 	x: number;
 	y: number;
 };
+
+type CanvasViewport = Parameters<typeof viewportCoordsToSceneCoords>[1];
 
 type SceneSnapshot = {
 	elements: any[];
@@ -128,6 +134,44 @@ function toScene(board?: BoardType | null): SceneSnapshot {
 	};
 }
 
+function getCanvasViewport(appState?: Partial<CanvasViewport> | null): CanvasViewport | null {
+	const zoom = appState?.zoom;
+	const zoomValue = Number(zoom?.value);
+	const offsetLeft = Number(appState?.offsetLeft);
+	const offsetTop = Number(appState?.offsetTop);
+	const scrollX = Number(appState?.scrollX);
+	const scrollY = Number(appState?.scrollY);
+
+	if (
+		!zoom ||
+		!Number.isFinite(zoomValue) ||
+		!Number.isFinite(offsetLeft) ||
+		!Number.isFinite(offsetTop) ||
+		!Number.isFinite(scrollX) ||
+		!Number.isFinite(scrollY)
+	) {
+		return null;
+	}
+
+	return {
+		zoom,
+		offsetLeft,
+		offsetTop,
+		scrollX,
+		scrollY,
+	};
+}
+
+function areCanvasViewportsEqual(left: CanvasViewport | null, right: CanvasViewport | null) {
+	return (
+		left?.zoom.value === right?.zoom.value &&
+		left?.offsetLeft === right?.offsetLeft &&
+		left?.offsetTop === right?.offsetTop &&
+		left?.scrollX === right?.scrollX &&
+		left?.scrollY === right?.scrollY
+	);
+}
+
 export default function Board() {
 	const { state } = _useContext();
 	const navigate = useNavigate();
@@ -141,9 +185,11 @@ export default function Board() {
 	const [boardReady, setBoardReady] = useState(false);
 	const [theme, setTheme] = useState<'light' | 'dark'>(getDocumentTheme());
 	const [remoteCursors, setRemoteCursors] = useState<CursorState[]>([]);
+	const [, refreshRemoteCursors] = useState(0);
 	const [roomUsers, setRoomUsers] = useState<BoardRoomUser[]>([]);
 
 	const excalidrawApiRef = useRef<any>(null);
+	const canvasViewportRef = useRef<CanvasViewport | null>(null);
 	const latestSceneRef = useRef<SceneSnapshot>(EMPTY_SCENE);
 	const isApplyingRemoteUpdateRef = useRef(false);
 	const emitTimerRef = useRef<number | null>(null);
@@ -324,6 +370,7 @@ export default function Board() {
 			socket.disconnect();
 			setRemoteCursors([]);
 			setRoomUsers([]);
+			canvasViewportRef.current = null;
 			latestSceneRef.current = EMPTY_SCENE;
 			elementsSignatureRef.current = '';
 			isApplyingRemoteUpdateRef.current = false;
@@ -334,17 +381,29 @@ export default function Board() {
 		(event: React.PointerEvent<HTMLDivElement>) => {
 			if (!boardId || !userId || !socket.connected) return;
 
+			const appState = excalidrawApiRef.current?.getAppState?.();
+			const viewport = getCanvasViewport(appState);
+			if (!viewport) return;
+
 			const now = Date.now();
 			if (now - lastCursorEmitRef.current < 50) return;
 			lastCursorEmitRef.current = now;
+
+			const sceneCursor = viewportCoordsToSceneCoords(
+				{
+					clientX: event.clientX,
+					clientY: event.clientY,
+				},
+				viewport,
+			);
 
 			socket.volatile.emit('cursor:update', {
 				boardId,
 				cursor: {
 					userId,
 					username,
-					x: event.clientX,
-					y: event.clientY,
+					x: sceneCursor.x,
+					y: sceneCursor.y,
 				},
 			});
 		},
@@ -375,6 +434,18 @@ export default function Board() {
 	}
 
 	const boardScene = toScene(board);
+	const visibleRemoteCursors = canvasViewportRef.current
+		? remoteCursors.map((cursor) => ({
+			...cursor,
+			...sceneCoordsToViewportCoords(
+				{
+					sceneX: cursor.x,
+					sceneY: cursor.y,
+				},
+				canvasViewportRef.current!,
+			),
+		}))
+		: [];
 
 	return (
 		<main style={{ padding: 0 }}>
@@ -383,7 +454,7 @@ export default function Board() {
 					className={`w-full h-screen excalidraw-wrapper flex justify-center theme--${theme}`}
 					onPointerMove={emitCursor}
 				>
-					{remoteCursors.map((cursor) => (
+					{visibleRemoteCursors.map((cursor) => (
 						<Cursor
 							key={cursor.socketId}
 							socketId={cursor.socketId}
@@ -419,7 +490,16 @@ export default function Board() {
 						excalidrawAPI={(api) => {
 							excalidrawApiRef.current = api;
 						}}
-						onChange={(elements, _appState, files) => {
+						onChange={(elements, appState, files) => {
+							const nextViewport = getCanvasViewport(appState);
+							if (
+								nextViewport &&
+								!areCanvasViewportsEqual(canvasViewportRef.current, nextViewport)
+							) {
+								canvasViewportRef.current = nextViewport;
+								refreshRemoteCursors((version) => version + 1);
+							}
+
 							if (!canEdit || isApplyingRemoteUpdateRef.current) return;
 
 							const signature = getElementsSignature(elements);

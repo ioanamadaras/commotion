@@ -26,11 +26,11 @@ export default function ModalShell({
 
 	return (
 		<div
-			className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+			className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
 			onClick={onClose}
 		>
 			<div
-				className={`w-full max-h-[min(90vh,48rem)] overflow-hidden rounded-xl border border-[var(--text)] bg-[var(--bg)] text-[var(--text)] shadow-2xl ${className}`}
+				className={`w-full max-h-[min(90vh,58rem)] overflow-hidden rounded-xl border border-[var(--text)] bg-[var(--bg)] text-[var(--text)] shadow-2xl ${className}`}
 				onClick={(event) => event.stopPropagation()}
 			>
 				<div className="flex items-center justify-between border-b border-[var(--text)]/10 px-5 py-4">
@@ -48,7 +48,7 @@ export default function ModalShell({
 					</button>
 				</div>
 
-				<div className="max-h-[calc(90vh-4rem)] overflow-y-auto px-5 py-4">
+				<div className="h-full overflow-y-auto">
 					{children}
 				</div>
 			</div>

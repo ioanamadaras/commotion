@@ -10,11 +10,12 @@ type SettingsModalProps = {
 };
 
 export default function SettingsModal({ anchorRect, placement }: SettingsModalProps) {
-	const { state, closeModal, toggleTheme } = _useContext();
+	const { state, setState, closeModal, toggleTheme } = _useContext();
 	const navigate = useNavigate();
 
 	function handleLogout() {
 		localStorage.removeItem('token');
+        setState(prev => ({...prev, user: { _id: "", username: "", email: ""}}))
 		closeModal();
 		navigate('/login');
 	}

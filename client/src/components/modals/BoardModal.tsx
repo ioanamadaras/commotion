@@ -182,153 +182,156 @@ export default function BoardModal({ boardId }: { boardId: string }) {
 
 	if (loading || !board) {
 		return (
-			<ModalShell title="Board settings" onClose={closeModal} className="max-w-3xl">
-				<div className="py-6 text-sm opacity-70">Loading board settings...</div>
+			<ModalShell title="Board settings" onClose={closeModal} className="max-w-3xl h-[80vh]">
+				<div className="p-6 text-sm opacity-70">Loading board settings...</div>
 			</ModalShell>
 		);
 	}
 
 	return (
 		<ModalShell title="Board settings" onClose={closeModal} className="max-w-3xl">
-			<div className="flex flex-col gap-5">
-				
-				<div className="flex w-full">
-					<p className="text-sm opacity-70 pr-3">Owner:</p>
-					<p>{owner?.username ?? 'Board owner'}</p>
-					{owner?.email ? <p>&nbsp;&nbsp;/&nbsp;&nbsp;{owner.email}</p> : null}
-				</div>
-                
-                <div className="grid gap-4 md:grid-cols-[1fr_12rem]">
-					<div className="flex flex-col gap-2">
-						<label className="text-sm font-medium">Name</label>
-						<input
-							value={title}
-							onChange={(event) => setTitle(event.target.value)}
-							disabled={!canEditBoard}
-							className="rounded-md border border-[var(--text)]/20 bg-transparent h-[3rem] px-3 outline-none"
-							placeholder="Board name"
-						/>
-					</div>
-
-					<div className="flex flex-col gap-2">
-						<label className="text-sm font-medium">Join code</label>
-						<div className="group relative flex items-center justify-center rounded-md border border-[var(--text)]/20 bg-[var(--bg-darker)] px-3 h-[3rem] text-center font-mono text-lg tracking-[0.3em]">
-							<span className='opacity-0 group-hover:opacity-100'>
-                                {joinCode || '------'}
-                            </span>
-                            <span className='absolute group-hover:opacity-0 select-none'>
-                                {'------'}
-                            </span>
+			<div className="relative flex h-[calc(100%-4.5rem)] flex-col">
+				<div className="min-h-0 flex-1 overflow-y-auto p-4">
+					<div className="flex flex-col gap-5">
+						<div className="flex w-full">
+							<p className="text-sm opacity-70 pr-3">Owner:</p>
+							<p>{owner?.username ?? 'Board owner'}</p>
+							{owner?.email ? <p>&nbsp;&nbsp;/&nbsp;&nbsp;{owner.email}</p> : null}
 						</div>
-					</div>
-				</div>
-
-
-				{board.permissionLevel === 'viewer' ? (
-					<p className="text-sm opacity-70">
-						You can view this board, but only editors and owners can change it.
-					</p>
-				) : null}
-
-				{canManagePermissions ? (
-					<>
-						<hr className="border-[var(--text)]/10" />
-
-						<div className="flex flex-col gap-3">
+						
+						<div className="grid gap-4 grid-cols-[1fr_10rem]">
 							<div className="flex flex-col gap-2">
-								<label className="text-sm font-medium">Add users by username</label>
+								<label className="text-sm font-medium">Name</label>
 								<input
-									value={query}
-									onChange={(event) => setQuery(event.target.value)}
-									className="rounded-md border border-[var(--text)]/20 bg-transparent px-3 py-2 outline-none"
-									placeholder="Search username"
+									value={title}
+									onChange={(event) => setTitle(event.target.value)}
+									disabled={!canEditBoard}
+									className="rounded-md border border-[var(--text)]/20 bg-transparent h-[3rem] px-3 outline-none"
+									placeholder="Board name"
 								/>
 							</div>
 
-							{results.length > 0 ? (
-								<div className="flex flex-col gap-2">
-									{results.map((user) => (
-										<div
-											key={user._id}
-											className="flex items-center justify-between gap-3 rounded-md border border-[var(--text)]/10 px-3 py-2"
-										>
-											<div>
-												<p className="font-medium">{user.username}</p>
-												<p className="text-xs opacity-60">{user.email}</p>
-											</div>
-											<div className="flex gap-2">
-												<button
-													type="button"
-													className="rounded-md border border-[var(--text)]/20 px-3 py-1 text-sm"
-													onClick={() => addUser(user, 'viewer')}
-												>
-													Viewer
-												</button>
-												<button
-													type="button"
-													className="rounded-md bg-(--text) px-3 py-1 text-sm text-(--bg)"
-													onClick={() => addUser(user, 'editor')}
-												>
-													Editor
-												</button>
-											</div>
-										</div>
-									))}
-								</div>
-							) : null}
-						</div>
-
-						<div className="grid gap-4 md:grid-cols-2">
-							<div className="rounded-lg border border-[var(--text)]/10 p-3">
-								<p className="mb-3 font-medium">Editors</p>
-								<div className="flex flex-col gap-2">
-									{currentEditors.length === 0 ? (
-										<p className="text-sm opacity-60">No editors yet.</p>
-									) : currentEditors.map((user) => (
-										<div key={user._id} className="flex items-center justify-between gap-2 rounded-md bg-[var(--bg-darker)] px-3 py-2">
-											<div className="min-w-0">
-												<p className="truncate text-sm font-medium">{user.username}</p>
-												<p className="truncate text-xs opacity-60">{user.email}</p>
-											</div>
-											<button
-												type="button"
-												className="rounded-md border border-[var(--text)]/20 px-2 py-1 text-xs"
-												onClick={() => removeUser(user._id)}
-											>
-												Remove
-											</button>
-										</div>
-									))}
-								</div>
-							</div>
-
-							<div className="rounded-lg border border-[var(--text)]/10 p-3">
-								<p className="mb-3 font-medium">Viewers</p>
-								<div className="flex flex-col gap-2">
-									{currentViewers.length === 0 ? (
-										<p className="text-sm opacity-60">No viewers yet.</p>
-									) : currentViewers.map((user) => (
-										<div key={user._id} className="flex items-center justify-between gap-2 rounded-md bg-[var(--bg-darker)] px-3 py-2">
-											<div className="min-w-0">
-												<p className="truncate text-sm font-medium">{user.username}</p>
-												<p className="truncate text-xs opacity-60">{user.email}</p>
-											</div>
-											<button
-												type="button"
-												className="rounded-md border border-[var(--text)]/20 px-2 py-1 text-xs"
-												onClick={() => removeUser(user._id)}
-											>
-												Remove
-											</button>
-										</div>
-									))}
+							<div className="flex flex-col gap-2">
+								<label className="text-sm font-medium">Join code</label>
+								<div className="group relative flex items-center justify-center rounded-md border border-[var(--text)]/20 bg-[var(--bg-darker)] px-3 h-[3rem] text-center font-mono text-lg tracking-[0.3em]">
+									<span className='opacity-0 group-hover:opacity-100'>
+										{joinCode || '------'}
+									</span>
+									<span className='absolute group-hover:opacity-0 select-none'>
+										{'------'}
+									</span>
 								</div>
 							</div>
 						</div>
-					</>
-				) : null}
 
-				<div className="flex items-center justify-between gap-3 border-t border-[var(--text)]/10 pt-4">
+
+						{board.permissionLevel === 'viewer' ? (
+							<p className="text-sm opacity-70">
+								You can view this board, but only editors and owners can change it.
+							</p>
+						) : null}
+
+						{canManagePermissions ? (
+							<>
+								<hr className="border-[var(--text)]/10" />
+
+								<div className="flex flex-col gap-3">
+									<div className="flex flex-col gap-2">
+										<label className="text-sm font-medium">Add users by username</label>
+										<input
+											value={query}
+											onChange={(event) => setQuery(event.target.value)}
+											className="rounded-md border border-[var(--text)]/20 bg-transparent px-3 py-2 outline-none"
+											placeholder="Search username"
+										/>
+									</div>
+
+									{results.length > 0 ? (
+										<div className="flex flex-col gap-2">
+											{results.map((user) => (
+												<div
+													key={user._id}
+													className="flex items-center justify-between gap-3 rounded-md border border-[var(--text)]/10 px-3 py-2"
+												>
+													<div>
+														<p className="font-medium">{user.username}</p>
+														<p className="text-xs opacity-60">{user.email}</p>
+													</div>
+													<div className="flex gap-2">
+														<button
+															type="button"
+															className="rounded-md border border-[var(--text)]/20 px-3 py-1 text-sm"
+															onClick={() => addUser(user, 'viewer')}
+														>
+															Viewer
+														</button>
+														<button
+															type="button"
+															className="rounded-md bg-(--text) px-3 py-1 text-sm text-(--bg)"
+															onClick={() => addUser(user, 'editor')}
+														>
+															Editor
+														</button>
+													</div>
+												</div>
+											))}
+										</div>
+									) : null}
+								</div>
+
+								<div className="grid gap-4 md:grid-cols-2">
+									<div className="rounded-lg border border-[var(--text)]/10 p-3">
+										<p className="mb-3 font-medium">Editors</p>
+										<div className="flex max-h-[min(28vh,16rem)] flex-col gap-2 overflow-y-auto pr-1">
+											{currentEditors.length === 0 ? (
+												<p className="text-sm opacity-60">No editors yet.</p>
+											) : currentEditors.map((user) => (
+												<div key={user._id} className="flex items-center justify-between gap-2 rounded-md bg-[var(--bg-darker)] px-2 py-1">
+													<div className="min-w-0">
+														<p className="truncate text-sm font-medium">{user.username}</p>
+														<p className="truncate text-xs opacity-60">{user.email}</p>
+													</div>
+													<button
+														type="button"
+														className="rounded-md border border-[var(--text)]/20 px-2 py-1 text-xs"
+														onClick={() => removeUser(user._id)}
+													>
+														Remove
+													</button>
+												</div>
+											))}
+										</div>
+									</div>
+
+									<div className="rounded-lg border border-[var(--text)]/10 p-3">
+										<p className="mb-3 font-medium">Viewers</p>
+										<div className="flex max-h-[min(28vh,16rem)] flex-col gap-2 overflow-y-auto pr-1">
+											{currentViewers.length === 0 ? (
+												<p className="text-sm opacity-60">No viewers yet.</p>
+											) : currentViewers.map((user) => (
+												<div key={user._id} className="flex items-center justify-between gap-2 rounded-md bg-[var(--bg-darker)] px-2 py-1">
+													<div className="min-w-0">
+														<p className="truncate text-sm font-medium">{user.username}</p>
+														<p className="truncate text-xs opacity-60">{user.email}</p>
+													</div>
+													<button
+														type="button"
+														className="rounded-md border border-[var(--text)]/20 px-2 py-1 text-xs"
+														onClick={() => removeUser(user._id)}
+													>
+														Remove
+													</button>
+												</div>
+											))}
+										</div>
+									</div>
+								</div>
+							</>
+						) : null}
+					</div>
+				</div>
+
+				<div className="sticky bottom-0 min-w-full left-0 p-4 flex items-center justify-between gap-3 border-t border-[var(--text)]/10 bg-[var(--bg)]">
 					{canManagePermissions ? (
 						<button
 							type="button"

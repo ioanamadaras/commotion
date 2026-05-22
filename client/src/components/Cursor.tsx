@@ -20,7 +20,7 @@ export default function Cursor({
 				left: x,
 				top: y,
 				pointerEvents: 'none',
-				zIndex: 9999,
+				zIndex: 15,
 				transform: 'translate(-0.6rem, -0.6rem)',
                 width: '2.6rem',
                 height: '2.6rem',

@@ -51,7 +51,7 @@ function App() {
 		return <div className="w-screen min-h-screen bg-[var(--bg)]"/>;
 	}
 	return (
-		<div className="w-screen h-full min-h-screen flex">
+		<div className="w-screen h-full min-h-screen max-h-screen flex">
 			{isLoggedIn && <Sidebar />}
             
 			<Routes>

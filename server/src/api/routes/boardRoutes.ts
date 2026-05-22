@@ -126,7 +126,7 @@ router.put('/joinUser', async (req, res) => {
     }
 });
 
-// Returns one board if the user has any access to it.
+// returneaza boardul daca userul are acces, asta e endpointul pe care il folosesc cand deschid un board
 router.get('/:boardId', async (req, res) => {
     try {
         const user = await getAuthenticatedUser(req);
