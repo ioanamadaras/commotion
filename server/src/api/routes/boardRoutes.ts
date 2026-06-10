@@ -6,16 +6,24 @@ const router = express.Router();
 
 type PermissionLevel = 'owner' | 'editor' | 'viewer';
 
-const permissionOf = (board: any, userId: string): PermissionLevel | null => {
+const permissionOf = (board: any, user: { _id?: unknown; role?: string } | null | undefined): PermissionLevel | null => {
+    const userId = user?._id ? String(user._id) : '';
+    const isGuest = user?.role === 'guest';
+
+    if (!userId) return null;
+    if (isGuest) {
+        return board.viewerUserIds?.includes(userId) ? 'viewer' : null;
+    }
+
     if (String(board.owner) === userId) return 'owner';
     if (board.editorUsersIds?.includes(userId)) return 'editor';
     if (board.viewerUserIds?.includes(userId)) return 'viewer';
     return null;
 };
 
-const withPermission = (board: any, userId: string) => ({
+const withPermission = (board: any, user: { _id?: unknown; role?: string } | null | undefined) => ({
     ...board.toObject(),
-    permissionLevel: permissionOf(board, userId)
+    permissionLevel: permissionOf(board, user)
 });
 
 const createJoinKey = () => Math.random().toString(36).substring(2, 8);
@@ -46,12 +54,17 @@ const loadBoard = async (boardId: string, res: Response) => {
 
 const load = loadBoard;
 
+const isGuestUser = (user: any) => user?.role === 'guest';
+
 // Creates a new board for the logged-in user.
 router.post('/create', async (req, res) => {
     try {
         const user = await getAuthenticatedUser(req);
         if (!user) {
             return res.status(401).json({ error: 'Unauthorized' });
+        }
+        if (isGuestUser(user)) {
+            return res.status(403).json({ error: 'Forbidden' });
         }
 
         const { title, boardData } = req.body;
@@ -89,7 +102,7 @@ router.get('/mine', async (req, res) => {
                 { viewerUserIds: userId }
             ]
         });
-        return res.status(200).json(boards.map((board) => withPermission(board, userId)));
+        return res.status(200).json(boards.map((board) => withPermission(board, user)));
     } 
     catch (err) { 
         console.error(err); 
@@ -118,7 +131,7 @@ router.put('/joinUser', async (req, res) => {
             await board.save();
         }
 
-        return res.status(200).json(withPermission(board, userId));
+        return res.status(200).json(withPermission(board, user));
     } 
     catch (err) { 
         console.error(err); 
@@ -137,10 +150,10 @@ router.get('/:boardId', async (req, res) => {
         const board = await load(req.params.boardId, res);
         if (!board) return;
 
-        const userId = String(user._id);
-        if (!permissionOf(board, userId)) return res.status(403).json({ error: 'Forbidden' });
+        const permission = permissionOf(board, user);
+        if (!permission) return res.status(403).json({ error: 'Forbidden' });
 
-        return res.status(200).json(withPermission(board, userId));
+        return res.status(200).json(withPermission(board, user));
     } 
     catch (err) { 
         console.error(err); 
@@ -155,12 +168,14 @@ router.put('/:boardId', async (req, res) => {
         if (!user) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
+        if (isGuestUser(user)) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
 
         const board = await load(req.params.boardId, res);
         if (!board) return;
 
-        const userId = String(user._id);
-        const permission = permissionOf(board, userId);
+        const permission = permissionOf(board, user);
         if (permission !== 'owner' && permission !== 'editor') {
             return res.status(403).json({ error: 'Forbidden' });
         }
@@ -172,7 +187,7 @@ router.put('/:boardId', async (req, res) => {
 
         await board.save();
 
-        return res.status(200).json(withPermission(board, userId));
+        return res.status(200).json(withPermission(board, user));
     } 
     catch (err) { 
         console.error(err); 
@@ -187,10 +202,13 @@ router.patch('/:boardId/permissions', async (req, res) => {
         if (!user) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
+        if (isGuestUser(user)) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
 
         const board = await load(req.params.boardId, res);
         if (!board) return;
-        if (permissionOf(board, String(user._id)) !== 'owner') {
+        if (permissionOf(board, user) !== 'owner') {
             return res.status(403).json({ error: 'Forbidden' });
         }
 
@@ -201,7 +219,7 @@ router.patch('/:boardId/permissions', async (req, res) => {
 
         await board.save();
 
-        return res.status(200).json(withPermission(board, String(user._id)));
+        return res.status(200).json(withPermission(board, user));
     } 
     catch (err) { 
         console.error(err); 
@@ -216,11 +234,14 @@ router.delete('/:boardId', async (req, res) => {
         if (!user) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
+        if (isGuestUser(user)) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
 
         const board = await load(req.params.boardId, res);
         if (!board) return;
 
-        if (permissionOf(board, String(user._id)) !== 'owner') {
+        if (permissionOf(board, user) !== 'owner') {
             return res.status(403).json({ error: 'Forbidden' });
         }
         await board.deleteOne();

@@ -2,16 +2,17 @@ import { emitError } from '@/utils/toast';
 
 const API_URL = 'http://localhost:8081';
 
-export async function api(path: string, options: RequestInit = {}) {
+export async function api(path: string, options: RequestInit & { silent?: boolean } = {}) {
+	const { silent, ...requestOptions } = options;
 	const token = localStorage.getItem('token');
 
 	try {
 		const res = await fetch(`${API_URL}${path}`, {
-			...options,
+			...requestOptions,
 			headers: {
 				'Content-Type': 'application/json',
 				...(token ? { Authorization: `Bearer ${token}` } : {}),
-				...options.headers,
+				...requestOptions.headers,
 			},
 		});
 
@@ -24,7 +25,7 @@ export async function api(path: string, options: RequestInit = {}) {
 		return data;
 	}
 	catch (error) {
-		if (error instanceof Error) {
+		if (!silent && error instanceof Error) {
 			emitError(error.message || 'Network error');
 		}
 

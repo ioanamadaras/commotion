@@ -13,6 +13,7 @@ export default function Sidebar() {
 	const { isSidebarOpen, activeModal, user } = state;
 	const location = useLocation();
 	const userId = user?._id ?? "";
+	const isGuest = user?.role === 'guest';
 
 	const [searchQuery, setSearchQuery] = useState("");
 	const [boardFilter, setBoardFilter] = useState<BoardFilter>("all");
@@ -125,19 +126,21 @@ export default function Sidebar() {
 					</span>
 				</Link>
 
-				<button
-					type="button"
-					onClick={(event) => openAnchoredModal('create-board', event.currentTarget, 180)}
-					className="bg-(--text) text-(--bg) p-1 rounded-md flex gap-2 items-center justify-center h-8 cursor-pointer hover:bg-(--gray)"
-				>
-					<span>
-						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="size-5">
-							<path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-						</svg>
-					</span>
+				{!isGuest ? (
+					<button
+						type="button"
+						onClick={(event) => openAnchoredModal('create-board', event.currentTarget, 180)}
+						className="bg-(--text) text-(--bg) p-1 rounded-md flex gap-2 items-center justify-center h-8 cursor-pointer hover:bg-(--gray)"
+					>
+						<span>
+							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="size-5">
+								<path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+							</svg>
+						</span>
 
-					{shouldShowSidebar ? <span>Create&nbsp;board</span> : null}
-				</button>
+						{shouldShowSidebar ? <span>Create&nbsp;board</span> : null}
+					</button>
+				) : null}
 
                 <button
 					type="button"
@@ -177,7 +180,7 @@ export default function Sidebar() {
 				{shouldShowSidebar ? (
 					<>
 						<div className="flex flex-wrap gap-1">
-							{boardFilterOptions.map((filter) => (
+							{!isGuest && boardFilterOptions.map((filter) => (
 								<button
 									key={filter.value}
 									type="button"
@@ -200,7 +203,9 @@ export default function Sidebar() {
 										No boards match these filters.
 									</div>
 								) : (
-									filteredBoards.map((board) => (
+									filteredBoards
+                                        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+                                        .map((board) => (
 										<div
 											key={board._id}
 											className={`group flex w-full items-center justify-between gap-2 rounded-md px-3 py-1 text-left transition-colors ${

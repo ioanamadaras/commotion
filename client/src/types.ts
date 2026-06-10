@@ -76,6 +76,7 @@ export type UserType = {
 	_id: string;
 	username: string;
 	email: string;
+	role?: 'user' | 'guest';
 };
 
 export type BoardRoomUser = {

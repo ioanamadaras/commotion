@@ -11,6 +11,29 @@ export default function Login() {
 	const [password, setPassword] = useState("");
 	const [error, setError] = useState("");
 
+	const handleGuestLogin = async () => {
+		try {
+			setError("");
+
+			const data = await api('/user/guest', {
+				method: 'POST',
+				silent: true,
+			});
+
+			const { token, ...user } = data;
+			localStorage.setItem('token', token);
+			setState((prev) => ({
+				...prev,
+				user,
+			}));
+
+			navigate('/');
+		}
+		catch (err: any) {
+			setError(err.message);
+		}
+	};
+
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 
@@ -70,8 +93,16 @@ export default function Login() {
 					onChange={(e) => setPassword(e.target.value)}
 				/>
 
-                <button className="bg-(--text) w-full text-(--bg) h-12 rounded-md flex gap-2 items-center justify-center hover:bg-(--gray) cursor-pointer">
+				<button className="bg-(--text) w-full text-(--bg) h-12 rounded-md flex gap-2 items-center justify-center hover:bg-(--gray) cursor-pointer">
 					Login
+				</button>
+
+				<button
+					type="button"
+					onClick={() => void handleGuestLogin()}
+					className="bg-transparent w-full h-12 rounded-md border border-[var(--text)]/20 flex gap-2 items-center justify-center hover:bg-[var(--bg)] cursor-pointer"
+				>
+					Continue as guest
 				</button>
 
 				<p className="text-sm opacity-70">

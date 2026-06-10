@@ -320,6 +320,7 @@ export default function Board() {
 				boardId,
 				userId,
 				username,
+				role: user?.role,
 			});
 		};
 

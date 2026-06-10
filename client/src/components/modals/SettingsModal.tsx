@@ -15,7 +15,7 @@ export default function SettingsModal({ anchorRect, placement }: SettingsModalPr
 
 	function handleLogout() {
 		localStorage.removeItem('token');
-        setState(prev => ({...prev, user: { _id: "", username: "", email: ""}}))
+		setState((prev) => ({ ...prev, user: null }));
 		closeModal();
 		navigate('/login');
 	}

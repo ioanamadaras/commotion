@@ -12,6 +12,31 @@ const serializeUser = (user: any) => {
     return safeUser;
 };
 
+const createGuestIdentity = () => {
+    const suffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+    return {
+        username: `Guest-${suffix.slice(0, 8)}`,
+        email: `guest-${suffix}@local`,
+    };
+};
+
+const createGuestSession = async () => {
+    const { username, email } = createGuestIdentity();
+
+    const guestUser = new userModel({
+        username,
+        email,
+        password: await bcrypt.hash(`${email}-${Math.random().toString(36)}`, 10),
+        role: 'guest',
+    });
+
+    await guestUser.save();
+
+    const token = jwt.sign({ userId: guestUser._id }, process.env.JWT_SECRET ?? '', { expiresIn: '30d' });
+    return { token, ...serializeUser(guestUser) };
+};
+
 // Registers a new user and returns a JWT plus the user profile.
 router.post('/register', async (req: Request, res: Response) => {
     try {
@@ -62,6 +87,18 @@ router.put('/login', async (req: Request, res: Response) => {
     }
 });
 
+// Creates an anonymous guest session that can view shared boards.
+router.post('/guest', async (req: Request, res: Response) => {
+    try {
+        const guestSession = await createGuestSession();
+        return res.status(201).json(guestSession);
+    }
+    catch (err) {
+        console.error(err);
+        return res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // Returns the currently authenticated user.
 router.get('/me', async (req: Request, res: Response) => {
     try {
@@ -81,6 +118,7 @@ router.get('/search', async (req: Request, res: Response) => {
     try {
         const authenticatedUser = await getAuthenticatedUser(req);
         if (!authenticatedUser) return res.status(401).json({ error: 'Unauthorized' });
+        if (authenticatedUser.role === 'guest') return res.status(403).json({ error: 'Forbidden' });
 
         const query = String(req.query.query ?? '').trim();
         if (!query) return res.status(200).json([]);
@@ -105,6 +143,7 @@ router.get('/lookup', async (req: Request, res: Response) => {
     try {
         const authenticatedUser = await getAuthenticatedUser(req);
         if (!authenticatedUser) return res.status(401).json({ error: 'Unauthorized' });
+        if (authenticatedUser.role === 'guest') return res.status(403).json({ error: 'Forbidden' });
 
         const ids = String(req.query.ids ?? '')
             .split(',')

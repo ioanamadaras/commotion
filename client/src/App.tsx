@@ -1,4 +1,4 @@
-import { Route, Routes, Navigate } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import Board from "./pages/Board";
 import Home from "./pages/Home";
 import Register from "./pages/Register";
@@ -12,8 +12,11 @@ import { api } from "./api";
 
 function App() {
 	const { state, setState } = _useContext();
+	const location = useLocation();
 	const [authReady, setAuthReady] = useState(false);
-	const isLoggedIn = !!state.user?.username;
+	const isGuest = state.user?.role === 'guest';
+	const isLoggedIn = !!state.user?.username && !isGuest;
+	const isAuthRoute = location.pathname === '/login' || location.pathname === '/register';
 
 	useEffect(() => {
         const theme = localStorage.getItem("theme");
@@ -22,16 +25,17 @@ function App() {
         }
 
 		const token = localStorage.getItem("token");
-		
-        if (!token) { // daca nu exista token
-			setAuthReady(true);
-			return;
-		}
 
 		async function fetchUser() {
 			try {
+				if (!token) {
+					setState((prev) => ({ ...prev, user: null }));
+					return;
+				}
+
 				const data = await api("/user/me", {
 					method: "GET",
+					silent: true,
 				});
 				setState((prev) => ({ ...prev, user: data }));
 			}
@@ -52,7 +56,7 @@ function App() {
 	}
 	return (
 		<div className="w-screen h-full min-h-screen max-h-screen flex">
-			{isLoggedIn && <Sidebar />}
+			{state.user && !isAuthRoute && <Sidebar />}
             
 			<Routes>
 				<Route path="/register" element={isLoggedIn ? <Navigate to="/" /> : <Register />} />
@@ -60,16 +64,16 @@ function App() {
 
 				<Route
 					path="/"
-					element={isLoggedIn ? <Home /> : <Navigate to="/login" />}
+					element={state.user ? <Home /> : <Navigate to="/login" replace />}
 				/>
 
 				<Route
 					path="/board/:id"
-					element={isLoggedIn ? <Board /> : <Navigate to="/login" />}
+					element={state.user ? <Board /> : <Navigate to="/login" replace />}
 				/>
 			</Routes>
 
-			{isLoggedIn ? <ModalHost /> : null}
+			{state.user && !isAuthRoute ? <ModalHost /> : null}
 			<ToastHost />
 		</div>
 	);

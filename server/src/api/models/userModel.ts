@@ -4,6 +4,7 @@ export interface IUser {
     username: string;
     email: string;
     password: string;
+    role: 'user' | 'guest';
 }
 
 export type UserDocument = HydratedDocument<IUser>;
@@ -25,6 +26,11 @@ const userSchema = new mongoose.Schema<IUser>({
     password: {
         type: String,
         required: true
+    },
+    role: {
+        type: String,
+        enum: ['user', 'guest'],
+        default: 'user'
     }
 }, {
     versionKey: false

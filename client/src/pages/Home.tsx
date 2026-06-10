@@ -13,6 +13,7 @@ export default function Home() {
 	const { state } = _useContext();
 	const user = state.user;
 	const userId = user?._id;
+    const isGuest = user?.role === 'guest';
 
 	const [searchQuery, setSearchQuery] = useState("");
 	const [boardFilter, setBoardFilter] = useState<BoardFilter>("all");
@@ -120,7 +121,7 @@ export default function Home() {
 							</div>
 
 							<div className="flex flex-wrap gap-2">
-								{boardFilterOptions.map((filter) => (
+								{!isGuest && boardFilterOptions.map((filter) => (
 									<button
 										key={filter.value}
 										type="button"
