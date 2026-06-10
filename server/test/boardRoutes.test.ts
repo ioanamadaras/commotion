@@ -2,6 +2,7 @@ import request from 'supertest';
 import { createApp } from '../src/app';
 import { getAuthenticatedUser } from '../src/api/utils/auth';
 import boardModel from '../src/api/models/boardModel';
+import boardMemberModel from '../src/api/models/boardMemberModel';
 
 jest.mock('../src/api/utils/auth', () => ({
   getAuthenticatedUser: jest.fn(),
@@ -13,11 +14,24 @@ jest.mock('../src/api/models/boardModel', () => ({
     findById: jest.fn(),
     findOne: jest.fn(),
     exists: jest.fn(),
+    find: jest.fn(),
+  },
+}));
+
+jest.mock('../src/api/models/boardMemberModel', () => ({
+  __esModule: true,
+  default: {
+    findOne: jest.fn(),
+    find: jest.fn(),
+    create: jest.fn(),
+    deleteMany: jest.fn(),
+    findOneAndUpdate: jest.fn(),
   },
 }));
 
 const mockedGetAuthenticatedUser = jest.mocked(getAuthenticatedUser);
 const mockedBoardModel = jest.mocked(boardModel);
+const mockedBoardMemberModel = jest.mocked(boardMemberModel);
 
 describe('board routes', () => {
   const app = createApp();
@@ -38,8 +52,6 @@ describe('board routes', () => {
       owner: 'user-1',
       title: 'Project',
       joinKey: 'abc123',
-      editorUsersIds: [],
-      viewerUserIds: [],
       boardData: { type: 'excalidraw', version: 2, elements: [], appState: {}, files: {} },
       toObject() {
         return { ...this };
@@ -48,6 +60,19 @@ describe('board routes', () => {
     };
 
     mockedBoardModel.findOne.mockResolvedValue(board as any);
+    mockedBoardMemberModel.findOne
+      .mockResolvedValueOnce(null as any)
+      .mockResolvedValueOnce({
+        boardId: 'board-1',
+        userId: 'user-2',
+        role: 'viewer',
+      } as any);
+    mockedBoardMemberModel.create.mockResolvedValue({
+      boardId: 'board-1',
+      userId: 'user-2',
+      role: 'viewer',
+    } as any);
+    mockedBoardMemberModel.find.mockResolvedValue([] as any);
 
     const response = await request(app)
       .put('/board/joinUser')
@@ -55,8 +80,11 @@ describe('board routes', () => {
 
     expect(response.status).toBe(200);
     expect(response.body.permissionLevel).toBe('viewer');
-    expect(board.viewerUserIds).toContain('user-2');
-    expect(board.save).toHaveBeenCalled();
+    expect(mockedBoardMemberModel.create).toHaveBeenCalledWith({
+      boardId: 'board-1',
+      userId: 'user-2',
+      role: 'viewer',
+    });
   });
 
   it('forbids non-owners from changing board permissions', async () => {
@@ -71,8 +99,6 @@ describe('board routes', () => {
       owner: 'user-1',
       title: 'Project',
       joinKey: 'abc123',
-      editorUsersIds: ['user-2'],
-      viewerUserIds: [],
       boardData: { type: 'excalidraw', version: 2, elements: [], appState: {}, files: {} },
       toObject() {
         return { ...this };
@@ -81,6 +107,11 @@ describe('board routes', () => {
     };
 
     mockedBoardModel.findById.mockResolvedValue(board as any);
+    mockedBoardMemberModel.findOne.mockResolvedValue({
+      boardId: 'board-1',
+      userId: 'user-2',
+      role: 'editor',
+    } as any);
 
     const response = await request(app)
       .patch('/board/board-1/permissions')

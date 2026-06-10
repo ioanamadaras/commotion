@@ -1,11 +1,8 @@
-import mongoose, { Types } from 'mongoose';
+import mongoose from 'mongoose';
 
 export interface IBoard {
     title: string;
-    owner: Types.ObjectId;
-
-    editorUsersIds: string[];
-    viewerUserIds: string[];
+    owner: mongoose.Types.ObjectId;
     joinKey: string;
 
     boardData: {
@@ -32,14 +29,6 @@ const boardSchema = new mongoose.Schema<IBoard>({
     joinKey: {
         type: String,
         required: false
-    },
-    editorUsersIds: {
-        type: [String],
-        default: []
-    },
-    viewerUserIds: {
-        type: [String],
-        default: []
     },
     // salvez exact cum e in Excalidraw, pentru a putea incarca direct in frontend
     boardData: {

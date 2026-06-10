@@ -1,30 +1,17 @@
-import express, { Request, Response } from 'express';
+import express, { Response } from 'express';
 import boardModel from '../models/boardModel';
+import boardMemberModel from '../models/boardMemberModel';
 import { getAuthenticatedUser } from '../utils/auth';
+import {
+    canEditPermission,
+    decorateBoard,
+    permissionOf,
+    setBoardPermissions,
+} from '../utils/boardAccess';
 
 const router = express.Router();
 
-type PermissionLevel = 'owner' | 'editor' | 'viewer';
-
-const permissionOf = (board: any, user: { _id?: unknown; role?: string } | null | undefined): PermissionLevel | null => {
-    const userId = user?._id ? String(user._id) : '';
-    const isGuest = user?.role === 'guest';
-
-    if (!userId) return null;
-    if (isGuest) {
-        return board.viewerUserIds?.includes(userId) ? 'viewer' : null;
-    }
-
-    if (String(board.owner) === userId) return 'owner';
-    if (board.editorUsersIds?.includes(userId)) return 'editor';
-    if (board.viewerUserIds?.includes(userId)) return 'viewer';
-    return null;
-};
-
-const withPermission = (board: any, user: { _id?: unknown; role?: string } | null | undefined) => ({
-    ...board.toObject(),
-    permissionLevel: permissionOf(board, user)
-});
+const withPermission = decorateBoard;
 
 const createJoinKey = () => Math.random().toString(36).substring(2, 8);
 
@@ -73,14 +60,12 @@ router.post('/create', async (req, res) => {
         const board = new boardModel({
             title: title ?? 'Untitled board',
             owner: user._id,
-            editorUsersIds: [],
-            viewerUserIds: [],
             joinKey: key,
             boardData
         });
         await board.save();
 
-        return res.status(201).json({ ...board.toObject(), permissionLevel: 'owner' });
+        return res.status(201).json(await withPermission(board, user));
     } 
     catch (err) { console.error(err); return res.status(500).json({ error: 'Server error' }); }
 });
@@ -94,15 +79,22 @@ router.get('/mine', async (req, res) => {
         }
 
         const userId = String(user._id);
+        const [ownedBoards, memberships] = await Promise.all([
+            boardModel.find({ owner: user._id }),
+            boardMemberModel.find({ userId }),
+        ]);
 
-        const boards = await boardModel.find({
-            $or: [
-                { owner: user._id },
-                { editorUsersIds: userId },
-                { viewerUserIds: userId }
-            ]
-        });
-        return res.status(200).json(boards.map((board) => withPermission(board, user)));
+        const memberBoardIds = memberships.map((membership) => String(membership.boardId));
+        const sharedBoards = memberBoardIds.length > 0
+            ? await boardModel.find({ _id: { $in: memberBoardIds } })
+            : [];
+
+        const boardById = new Map<string, any>();
+        ownedBoards.forEach((board) => boardById.set(String(board._id), board));
+        sharedBoards.forEach((board) => boardById.set(String(board._id), board));
+
+        const boards = [...boardById.values()];
+        return res.status(200).json(await Promise.all(boards.map((board) => withPermission(board, user))));
     } 
     catch (err) { 
         console.error(err); 
@@ -126,12 +118,23 @@ router.put('/joinUser', async (req, res) => {
         }
 
         const userId = String(user._id);
-        if (!board.viewerUserIds.includes(userId)) {
-            board.viewerUserIds = [...board.viewerUserIds, userId];
-            await board.save();
+        if (String(board.owner) !== userId) {
+            const existingMembership = await boardMemberModel.findOne({ boardId: board._id, userId });
+
+            if (!existingMembership) {
+                await boardMemberModel.create({
+                    boardId: board._id,
+                    userId,
+                    role: 'viewer'
+                });
+            } else if (existingMembership.role === 'viewer') {
+                // already has the expected role
+            } else {
+                // keep higher permissions if the user was already invited as editor
+            }
         }
 
-        return res.status(200).json(withPermission(board, user));
+        return res.status(200).json(await withPermission(board, user));
     } 
     catch (err) { 
         console.error(err); 
@@ -150,10 +153,10 @@ router.get('/:boardId', async (req, res) => {
         const board = await load(req.params.boardId, res);
         if (!board) return;
 
-        const permission = permissionOf(board, user);
+        const permission = await permissionOf(board, user);
         if (!permission) return res.status(403).json({ error: 'Forbidden' });
 
-        return res.status(200).json(withPermission(board, user));
+        return res.status(200).json(await withPermission(board, user));
     } 
     catch (err) { 
         console.error(err); 
@@ -175,8 +178,8 @@ router.put('/:boardId', async (req, res) => {
         const board = await load(req.params.boardId, res);
         if (!board) return;
 
-        const permission = permissionOf(board, user);
-        if (permission !== 'owner' && permission !== 'editor') {
+        const permission = await permissionOf(board, user);
+        if (!canEditPermission(permission)) {
             return res.status(403).json({ error: 'Forbidden' });
         }
 
@@ -187,7 +190,7 @@ router.put('/:boardId', async (req, res) => {
 
         await board.save();
 
-        return res.status(200).json(withPermission(board, user));
+        return res.status(200).json(await withPermission(board, user));
     } 
     catch (err) { 
         console.error(err); 
@@ -208,18 +211,19 @@ router.patch('/:boardId/permissions', async (req, res) => {
 
         const board = await load(req.params.boardId, res);
         if (!board) return;
-        if (permissionOf(board, user) !== 'owner') {
+        if ((await permissionOf(board, user)) !== 'owner') {
             return res.status(403).json({ error: 'Forbidden' });
         }
 
         const { editorUsersIds, viewerUserIds } = req.body;
+        const nextEditorUsersIds = Array.isArray(editorUsersIds) ? editorUsersIds.filter((id) => String(id) !== String(board.owner)) : [];
+        const nextViewerUsersIds = Array.isArray(viewerUserIds) ? viewerUserIds.filter((id) => String(id) !== String(board.owner)) : [];
+        const accessLists = await setBoardPermissions(board._id, nextEditorUsersIds, nextViewerUsersIds, board.owner);
 
-        if (Array.isArray(editorUsersIds)) board.editorUsersIds = editorUsersIds;
-        if (Array.isArray(viewerUserIds)) board.viewerUserIds = viewerUserIds;
-
-        await board.save();
-
-        return res.status(200).json(withPermission(board, user));
+        return res.status(200).json({
+            ...(await withPermission(board, user)),
+            ...accessLists,
+        });
     } 
     catch (err) { 
         console.error(err); 
@@ -241,7 +245,7 @@ router.delete('/:boardId', async (req, res) => {
         const board = await load(req.params.boardId, res);
         if (!board) return;
 
-        if (permissionOf(board, user) !== 'owner') {
+        if ((await permissionOf(board, user)) !== 'owner') {
             return res.status(403).json({ error: 'Forbidden' });
         }
         await board.deleteOne();

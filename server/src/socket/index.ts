@@ -1,20 +1,7 @@
 import { Server } from "socket.io";
 import type { Server as HttpServer } from "http";
 import boardModel from "../api/models/boardModel";
-
-const permissionOf = (board: any, userId: string, role?: string) => {
-    if (role === "guest") {
-        return board.viewerUserIds?.includes(userId) ? "viewer" : null;
-    }
-
-    if (String(board.owner) === userId) return "owner";
-    if (board.editorUsersIds?.includes(userId)) return "editor";
-    if (board.viewerUserIds?.includes(userId)) return "viewer";
-    return null;
-};
-
-const canEditPermission = (permission: string | null) =>
-    permission === "owner" || permission === "editor";
+import { canEditPermission, permissionOf } from "../api/utils/boardAccess";
 
 const shouldUseIncomingElement = (current: any, incoming: any) => {
     if (!current) return true;
@@ -150,7 +137,11 @@ export function initSocket(server: HttpServer) {
                     if (!boardId || !userId) return;
 
                     const board = await boardModel.findById(boardId);
-                    if (!board || !permissionOf(board, userId, role)) {
+                    const permission = board
+                        ? await permissionOf(board, { _id: userId, role })
+                        : null;
+
+                    if (!board || !permission) {
                         return;
                     }
 
@@ -162,7 +153,7 @@ export function initSocket(server: HttpServer) {
                     socket.data.userId = userId;
                     socket.data.username = username || "User";
                     socket.data.role = role || "user";
-                    socket.data.permission = permissionOf(board, userId, role);
+                    socket.data.permission = permission;
 
                     await emitUsersChanged(boardId);
 
@@ -188,7 +179,7 @@ export function initSocket(server: HttpServer) {
 
                     const board = await boardModel.findById(boardId);
                     const permission = board
-                        ? permissionOf(board, socket.data.userId, socket.data.role)
+                        ? await permissionOf(board, { _id: socket.data.userId, role: socket.data.role })
                         : null;
 
                     if (!board || !canEditPermission(permission)) {
