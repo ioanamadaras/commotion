@@ -4,7 +4,6 @@ import { exportToSvg } from "@excalidraw/excalidraw";
 import type { AppState as ExcalidrawAppState, BinaryFiles } from "@excalidraw/excalidraw/types";
 import type { ExcalidrawElement, NonDeleted } from "@excalidraw/excalidraw/element/types";
 import { _useContext } from "../Context";
-import { api } from "../api";
 import { formatDateLocale, getGreeting } from "../utils/time";
 import { boardFilterOptions, filterBoards, type BoardFilter } from "@/utils/boards";
 import type { BoardType } from "@/types";
@@ -13,70 +12,11 @@ export default function Home() {
 	const { state } = _useContext();
 	const user = state.user;
 	const userId = user?._id;
-    const isGuest = user?.role === 'guest';
+    const isGuest = user?.userType === 'guest';
 
 	const [searchQuery, setSearchQuery] = useState("");
 	const [boardFilter, setBoardFilter] = useState<BoardFilter>("all");
-	const [boards, setBoards] = useState<BoardType[]>([]);
-	const [loading, setLoading] = useState(true);
-
-	useEffect(() => {
-		let cancelled = false;
-
-		async function loadBoards() {
-			if (!userId) {
-				setBoards([]);
-				setLoading(false);
-				return;
-			}
-
-			try {
-				setLoading(true);
-				const data = await api("/board/mine");
-				if (!cancelled) {
-					setBoards(data);
-				}
-			}
-			catch (error) {
-				console.error(error);
-				if (!cancelled) {
-					setBoards([]);
-				}
-			}
-			finally {
-				if (!cancelled) {
-					setLoading(false);
-				}
-			}
-		}
-
-		void loadBoards();
-
-		return () => {
-			cancelled = true;
-		};
-	}, [userId]);
-
-	useEffect(() => {
-		const handleRefresh = () => {
-			if (!userId) return;
-
-			void (async () => {
-				try {
-					const data = await api("/board/mine");
-					setBoards(data);
-				}
-				catch (error) {
-					console.error(error);
-				}
-			})();
-		};
-
-		window.addEventListener("boards:refresh", handleRefresh);
-		return () => window.removeEventListener("boards:refresh", handleRefresh);
-	}, [userId]);
-
-	const filteredBoards = filterBoards(boards, userId ?? "", boardFilter, searchQuery);
+	const filteredBoards = filterBoards(state.boards, userId ?? "", boardFilter, searchQuery);
 
 	return (
 		<main className="flex-1 overflow-y-auto bg-[var(--bg)] px-4 py-5 text-[var(--text)] sm:px-6 lg:px-8">
@@ -94,13 +34,13 @@ export default function Home() {
 				<section className="flex flex-col gap-4">
 					<div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
 						<div>
-							<h2 className="text-lg font-semibold">Recent boards</h2>
-							<p className="text-sm opacity-65">
-								{loading
+								<h2 className="text-lg font-semibold">Recent boards</h2>
+								<p className="text-sm opacity-65">
+								{state.boardsLoading
 									? "Loading your boards..."
-									: `${filteredBoards.length} board${filteredBoards.length === 1 ? "" : "s"} shown from ${boards.length} available`}
-							</p>
-						</div>
+									: `${filteredBoards.length} board${filteredBoards.length === 1 ? "" : "s"} shown from ${state.boards.length} available`}
+								</p>
+							</div>
 
 						<div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:max-w-3xl">
 							<div className="flex h-11 flex-1 items-center gap-2 rounded-[0.5rem] border border-[var(--text)]/10 bg-[var(--bg)] px-3 focus-within:shadow-sm">
@@ -139,7 +79,7 @@ export default function Home() {
 						</div>
 					</div>
 
-					{loading ? (
+					{state.boardsLoading ? (
 						<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
 							{Array.from({ length: 4 }).map((_, index) => (
 								<div

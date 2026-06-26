@@ -8,6 +8,8 @@ const initialState: StateType = {
 	theme: localStorage.getItem("theme") as StateType["theme"] 
         ?? (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
 	user: null,
+	boards: [],
+	boardsLoading: true,
     activeModal: null,
     toasts: [],
 };

@@ -16,10 +16,10 @@ export function createApp() {
   // middleware
   app.use(morgan("dev"));
   app.use(helmet());
-  app.use(cors({ origin: [
-      "http://localhost:5001",
-      "http://192.168.100.88:5001"
-  ], credentials: true }));
+  app.use(cors({ 
+    origin: "http://localhost:5001",
+    credentials: true 
+  }));
   app.use(express.json());
 
   // routes

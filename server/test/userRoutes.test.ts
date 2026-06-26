@@ -37,7 +37,7 @@ describe('user routes', () => {
   it('returns matching users for /user/search and excludes the authenticated user', async () => {
     mockedGetAuthenticatedUser.mockResolvedValue({
       _id: 'user-1',
-      role: 'user',
+      userType: 'user',
       toObject: () => ({ _id: 'user-1', username: 'Ada', email: 'ada@example.com' }),
     } as any);
 
@@ -56,8 +56,8 @@ describe('user routes', () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual([
-      { _id: 'user-2', username: 'Adam', email: 'adam@example.com' },
-      { _id: 'user-3', username: 'Bea', email: 'bea@example.com' },
+      { _id: 'user-2', username: 'Adam', email: 'adam@example.com', userType: 'user' },
+      { _id: 'user-3', username: 'Bea', email: 'bea@example.com', userType: 'user' },
     ]);
     expect(mockedUserModel.find).toHaveBeenCalledWith({
       _id: { $ne: 'user-1' },
@@ -68,7 +68,7 @@ describe('user routes', () => {
   it('forbids guest users from using /user/lookup', async () => {
     mockedGetAuthenticatedUser.mockResolvedValue({
       _id: 'guest-1',
-      role: 'guest',
+      userType: 'guest',
       toObject: () => ({ _id: 'guest-1', username: 'Guest', email: 'guest@example.com' }),
     } as any);
 

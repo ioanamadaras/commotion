@@ -73,7 +73,7 @@ type BoardJoinPayload = {
     boardId: string;
     userId: string;
     username: string;
-    role?: string;
+    userType?: string;
 };
 
 type BoardUpdatePayload = {
@@ -102,10 +102,7 @@ export function initSocket(server: HttpServer) {
         const io = new Server(server, {
             transports: ["websocket", "polling"],
             cors: {
-                origin: [
-                    "http://localhost:5001",
-                    "http://192.168.100.88:5001",
-                ],
+                origin: "http://localhost:5001",
                 credentials: true,
             },
             allowEIO3: true,
@@ -131,14 +128,13 @@ export function initSocket(server: HttpServer) {
         };
 
         io.on("connection", (socket) => {
-            socket.on(
-                "board:join",
-                async ({ boardId, userId, username, role }: BoardJoinPayload) => {
+            socket.on("board:join",
+                async ({ boardId, userId, username, userType }: BoardJoinPayload) => {
                     if (!boardId || !userId) return;
 
                     const board = await boardModel.findById(boardId);
                     const permission = board
-                        ? await permissionOf(board, { _id: userId, role })
+                        ? await permissionOf(board, { _id: userId, userType })
                         : null;
 
                     if (!board || !permission) {
@@ -151,8 +147,9 @@ export function initSocket(server: HttpServer) {
 
                     socket.data.boardId = boardId;
                     socket.data.userId = userId;
+                    socket.data.userType = userType;
                     socket.data.username = username || "User";
-                    socket.data.role = role || "user";
+                    socket.data.role = permission;
                     socket.data.permission = permission;
 
                     await emitUsersChanged(boardId);
@@ -179,7 +176,7 @@ export function initSocket(server: HttpServer) {
 
                     const board = await boardModel.findById(boardId);
                     const permission = board
-                        ? await permissionOf(board, { _id: socket.data.userId, role: socket.data.role })
+                        ? await permissionOf(board, { _id: socket.data.userId, userType: socket.data.userType })
                         : null;
 
                     if (!board || !canEditPermission(permission)) {
@@ -213,8 +210,7 @@ export function initSocket(server: HttpServer) {
                 },
             );
 
-            socket.on(
-                "cursor:update",
+            socket.on("cursor:update",
                 async ({ boardId, cursor }: CursorUpdatePayload) => {
                     if (!boardId) return;
 

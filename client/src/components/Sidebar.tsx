@@ -13,11 +13,10 @@ export default function Sidebar() {
 	const { isSidebarOpen, activeModal, user } = state;
 	const location = useLocation();
 	const userId = user?._id ?? "";
-	const isGuest = user?.role === 'guest';
+	const isGuest = user?.userType === 'guest';
 
 	const [searchQuery, setSearchQuery] = useState("");
 	const [boardFilter, setBoardFilter] = useState<BoardFilter>("all");
-	const [boards, setBoards] = useState<BoardType[]>([]);
 
 	type AnchoredModal = Extract<Exclude<ModalState, null>, { anchorRect: AnchorRect; placement: ModalPlacement }>;
 
@@ -53,53 +52,48 @@ export default function Sidebar() {
 		setState((prev: StateType) => ({ ...prev, isSidebarOpen: newValue }));
 	}
 
-	useEffect(() => {
-		let cancelled = false;
+	function setBoardsState(nextBoards: BoardType[], nextLoading: boolean) {
+		setState((prev) => ({
+			...prev,
+			boards: nextBoards,
+			boardsLoading: nextLoading,
+		}));
+	}
 
-		async function loadBoards() {
-			if (!userId) {
-				setBoards([]);
-				return;
-			}
-
-			try {
-				const data = await api("/board/mine");
-				if (!cancelled) {
-					setBoards(data);
-				}
-			}
-			catch (error) {
-				console.error(error);
-			}
+	async function loadBoards() {
+		if (!userId) {
+			setBoardsState([], false);
+			return;
 		}
 
-		void loadBoards();
+		setState((prev) => ({ ...prev, boardsLoading: true }));
 
-		return () => {
-			cancelled = true;
-		};
+		try {
+			const data = await api("/board/mine");
+			setBoardsState(data, false);
+		}
+		catch (error) {
+			console.error(error);
+			setBoardsState([], false);
+		}
+	}
+
+	useEffect(() => {
+		void loadBoards();
 	}, [userId]);
 
 	useEffect(() => {
 		const handleRefresh = () => {
 			if (!userId) return;
 
-			void (async () => {
-				try {
-					const data = await api("/board/mine");
-					setBoards(data);
-				}
-				catch (error) {
-					console.error(error);
-				}
-			})();
+			void loadBoards();
 		};
 
 		window.addEventListener('boards:refresh', handleRefresh);
 		return () => window.removeEventListener('boards:refresh', handleRefresh);
 	}, [userId]);
 
-	const filteredBoards = filterBoards(boards, userId, boardFilter, searchQuery);
+	const filteredBoards = filterBoards(state.boards, userId, boardFilter, searchQuery);
 	const activeBoardId = location.pathname.match(/^\/board\/([^/]+)$/)?.[1] ?? null;
 
 	const shouldShowSidebar = isSidebarOpen || !!activeModal;
@@ -198,7 +192,11 @@ export default function Sidebar() {
 
 						<div className="flex-1 min-h-0 overflow-y-auto pr-1">
 							<div className="flex flex-col gap-[5px]">
-								{filteredBoards.length === 0 ? (
+								{state.boardsLoading ? (
+									<div className="p-3 text-sm opacity-70">
+										Loading your boards...
+									</div>
+								) : filteredBoards.length === 0 ? (
 									<div className="p-3 text-sm opacity-70">
 										No boards match these filters.
 									</div>

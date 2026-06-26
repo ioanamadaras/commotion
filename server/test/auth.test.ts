@@ -26,7 +26,7 @@ describe('getAuthenticatedUser', () => {
   });
 
   it('returns the authenticated user when the bearer token is valid', async () => {
-    const user = { _id: 'user-1', username: 'Ada', email: 'ada@example.com' };
+    const user = { _id: 'user-1', username: 'Ada', email: 'ada@example.com', userType: 'user' };
     (mockedJwt.verify as unknown as jest.Mock).mockReturnValue({ userId: 'user-1' } as jwt.JwtPayload);
     mockedUserModel.findById.mockReturnValue({
       select: jest.fn().mockResolvedValue(user),

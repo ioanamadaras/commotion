@@ -14,7 +14,7 @@ function App() {
 	const { state, setState } = _useContext();
 	const location = useLocation();
 	const [authReady, setAuthReady] = useState(false);
-	const isGuest = state.user?.role === 'guest';
+	const isGuest = state.user?.userType === 'guest';
 	const isLoggedIn = !!state.user?.username && !isGuest;
 	const isAuthRoute = location.pathname === '/login' || location.pathname === '/register';
 

@@ -320,7 +320,7 @@ export default function Board() {
 				boardId,
 				userId,
 				username,
-				role: user?.role,
+				userType: user?.userType,
 			});
 		};
 
@@ -378,38 +378,35 @@ export default function Board() {
 		};
 	}, [applyRemoteScene, board, boardId, boardReady, userId, username]);
 
-	const emitCursor = useCallback(
-		(event: React.PointerEvent<HTMLDivElement>) => {
-			if (!boardId || !userId || !socket.connected) return;
+    const emitCursor = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+        if (!boardId || !userId || !socket.connected) return;
 
-			const appState = excalidrawApiRef.current?.getAppState?.();
-			const viewport = getCanvasViewport(appState);
-			if (!viewport) return;
+        const appState = excalidrawApiRef.current?.getAppState?.();
+        const viewport = getCanvasViewport(appState);
+        if (!viewport) return;
 
-			const now = Date.now();
-			if (now - lastCursorEmitRef.current < 50) return;
-			lastCursorEmitRef.current = now;
+        const now = Date.now();
+        if (now - lastCursorEmitRef.current < 50) return;
+        lastCursorEmitRef.current = now;
 
-			const sceneCursor = viewportCoordsToSceneCoords(
-				{
-					clientX: event.clientX,
-					clientY: event.clientY,
-				},
-				viewport,
-			);
+        const sceneCursor = viewportCoordsToSceneCoords(
+            {
+                clientX: event.clientX,
+                clientY: event.clientY,
+            },
+            viewport,
+        );
 
-			socket.volatile.emit('cursor:update', {
-				boardId,
-				cursor: {
-					userId,
-					username,
-					x: sceneCursor.x,
-					y: sceneCursor.y,
-				},
-			});
-		},
-		[boardId, userId, username],
-	);
+        socket.volatile.emit('cursor:update', {
+            boardId,
+            cursor: {
+                userId,
+                username,
+                x: sceneCursor.x,
+                y: sceneCursor.y,
+            },
+        });
+    }, [boardId, userId, username]);
 
 	if (!user) return null;
 

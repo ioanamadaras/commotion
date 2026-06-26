@@ -105,9 +105,9 @@ export default function QuickBoardModal({
 
 				<button
 					type="button"
-					disabled={submitting}
+					disabled={isCreate ? submitting : value.length !== 6}
 					onClick={() => void handleSubmit()}
-					className="rounded-md bg-(--text) px-3 py-2 text-sm text-(--bg) disabled:opacity-60"
+					className={`rounded-md bg-(--text) px-3 py-2 text-sm text-(--bg) disabled:opacity-60 ${isCreate ? submitting : value.length !== 6 ? 'cursor-not-allowed!' : ''}`}
 				>
 					{isCreate ? 'Create board' : 'Join board'}
 				</button>
