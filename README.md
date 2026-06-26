@@ -1,4 +1,4 @@
-# Licenta
+# Commotion
 
 To run this project, you need to have Node.js and npm installed on your machine. Follow the steps below to set up and run the project:
 
