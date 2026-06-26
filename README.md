@@ -19,7 +19,8 @@ npm install
 npm run dev
 ```
 
-(In a separate terminal)
+> (In a separate terminal)
+
 4. Define `MONGO_URI` / `JWT_SECRET` and `PORT` in a new .env file in the `/server` directory
 
 5. Navigate to the server directory and install the dependencies:
