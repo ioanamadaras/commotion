@@ -14,7 +14,7 @@ A collaborative Web app for real-time, cross-team board editing.
 
 > Live demo of 3 users editing the same board:
 
-<div style="position:relative; width:100%; height:0px; padding-bottom:62.500%"><iframe allow="fullscreen;autoplay" allowfullscreen height="100%" src="https://streamable.com/e/q8g8px?autoplay=1" width="100%" style="border:none; width:100%; height:100%; position:absolute; left:0px; top:0px; overflow:hidden;"></iframe></div>
+![Floating-cursors-live](screenshots/three-accounts.gif)
 
 ## Installation:
 
