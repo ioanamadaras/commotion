@@ -33,7 +33,7 @@ const boardSchema = new mongoose.Schema<IBoard>({
     // salvez exact cum e in Excalidraw, pentru a putea incarca direct in frontend
     boardData: {
         type: Object,
-        default: {
+        default: { 
             type: "excalidraw",
             version: 2,
             elements: [],

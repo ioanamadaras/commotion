@@ -78,7 +78,7 @@ router.get("/mine", async (req, res) => {
         }
 
         const userId = String(user._id);
-        const [ownedBoards, memberships] = await Promise.all([
+        const [ownedBoards, memberships] = await Promise.all([ //cauta board urile detinute si
             boardModel.find({ owner: user._id }),
             boardMemberModel.find({ userId }),
         ]);
@@ -228,13 +228,13 @@ router.patch("/:boardId/permissions", async (req, res) => {
         const nexteditorUserIds = Array.isArray(editorUserIds)
             ? editorUserIds.filter((id) => String(id) !== String(board.owner))
             : [];
-        const nextViewerUsersIds = Array.isArray(viewerUserIds)
+        const nextViewerUserIds = Array.isArray(viewerUserIds)
             ? viewerUserIds.filter((id) => String(id) !== String(board.owner))
             : [];
         const accessLists = await setBoardPermissions(
             board._id,
             nexteditorUserIds,
-            nextViewerUsersIds,
+            nextViewerUserIds,
             board.owner,
         );
 

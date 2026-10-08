@@ -31,7 +31,7 @@ type SceneSnapshot = {
 };
 
 type RemoteScenePayload = SceneSnapshot & {
-	sourceSocketId?: string;
+	sourceSocketId?: string; //Ca sa ignor propria mea actualizare cand primesc un update de la server
 };
 
 const EMPTY_SCENE: SceneSnapshot = {
@@ -56,14 +56,14 @@ function getCleanAppState(appState: Record<string, any> = {}) {
 	return {
 		...appState,
 		collaborators: undefined,
-		selectedElementIds: undefined,
+		selectedElementIds: undefined, //daca selectez un element nu vreau sa fie selectat si la ceilalti
 		selectedGroupIds: undefined,
 		editingElement: undefined,
 		editingGroupId: undefined,
 	};
 }
 
-function shouldUseIncomingElement(current: any, incoming: any) {
+function shouldUseIncomingElement(current: any, incoming: any) { //daca incoming are versiune mai mare decat current, atunci folosesc incoming
 	if (!current) return true;
 
 	const currentVersion = Number(current.version ?? 0);
@@ -128,7 +128,7 @@ function getElementsSignature(elements: readonly any[] = []) {
 
 function toScene(board?: BoardType | null): SceneSnapshot {
 	return {
-		elements: [...(board?.boardData?.elements ?? [])],
+		elements: [...(board?.boardData?.elements ?? [])], //foloseste ...pentru a crea o copie a array-ului, astfel incat modificarile ulterioare sa nu afecteze datele originale
 		appState: getCleanAppState(board?.boardData?.appState ?? {}),
 		files: board?.boardData?.files ?? {},
 	};
@@ -262,7 +262,7 @@ export default function Board() {
 		socket.emit('board:update', {
 			boardId,
 			elements: scene.elements,
-			appState: {},
+			appState: {}, //nu transmit appState pentru ca nu vreau sa afectez setarile altor utilizatori precum zoom-ul, scroll-ul, etc. Fiecare utilizator are propriul appState.
 			files: scene.files,
 		});
 	}, [boardId, canEdit, userId]);
@@ -355,7 +355,7 @@ export default function Board() {
 
 		if (socket.connected) joinBoard();
 
-		return () => {
+		return () => { //cleanup socket connection and event listeners when component unmounts or dependencies change
 			socket.emit('cursor:leave', { boardId });
 			socket.off('connect', joinBoard);
 			socket.off('board:update', handleBoardUpdate);
@@ -397,7 +397,7 @@ export default function Board() {
             viewport,
         );
 
-        socket.volatile.emit('cursor:update', {
+        socket.volatile.emit('cursor:update', { //daca pierd o pozitie de cursor nu e mare lucru, deci folosesc emit volatil pentru a nu congestiona reteaua
             boardId,
             cursor: {
                 userId,

@@ -87,7 +87,7 @@ export const setBoardPermissions = async (
                 .map((id) => id.trim())
                 .filter(Boolean),
         ),
-    ].filter((userId) => !normalizedEditors.includes(userId));
+    ].filter((userId) => !normalizedEditors.includes(userId)); //daca un user este in lista de editori, nu il mai pun si in lista de vizualizatori 
 
     const desiredByUserId = new Map<string, BoardMemberRole>();
     normalizedEditors.forEach((userId) =>
